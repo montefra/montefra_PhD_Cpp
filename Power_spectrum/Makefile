@@ -15,6 +15,10 @@
 # options for "make install"                                  # 
 #   prefix=... to change the installation prefix              #
 #   [default $HOME/bin]                                       #
+#                                                             # 
+# use 'make test_build' to test changes in the code without   #
+# overwiting the official exec. To delete these exec use      #
+# 'make cleantest'                                            # 
 ###############################################################
 
 #parallel compilation
@@ -89,6 +93,16 @@ boxpower_spectrum: $(boxo) $(classo) read_snapshot.o
 fkppower_spectrum: $(fkpo) $(classo) 
 	$(GPP) -o $@ $(fkpo) $(classo) $(options) $(LINK)
 	
+#compile the code without overwriting the exec. used to test the code
+test_exec = test_boxpower_spectrum test_fkppower_spectrum
+test_build: $(test_exec)
+
+test_boxpower_spectrum: $(boxo) $(classo) read_snapshot.o
+	$(GPP) -o $@ $(boxo) read_snapshot.o $(classo) $(options) $(LINK) 
+
+test_fkppower_spectrum: $(fkpo) $(classo) 
+	$(GPP) -o $@ $(fkpo) $(classo) $(options) $(LINK)
+
 #-Wl,-rpath=$(LIB)
 
 %.o: %.cpp
@@ -100,10 +114,12 @@ install:
 	cp $(exec) $(prefix)
 
 help:
-	@head -n18 Makefile
+	@head -n22 Makefile
 .PHONY : clean cleanall
 clean:
 	rm *.o
 cleanall:
 	rm *.o $(classo) $(exec)
 
+cleantest:
+	rm $(test_exec)

@@ -98,13 +98,48 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
 
     /*==========================================================================
      * Assign the particle to the grid according to the chosen MAS
+     * first version for the real grid, second for the complex one
      * Parameters
      * ----------
      * x, y, z: position in grid units
+     * ind (for the complex grid only): 0 or 1 to assigne the particle to the
+     *   real or immaginary part of the grid
      * w: weight of the particle
      *==========================================================================*/
     void assign_particle(double x, double y, double z, double w){
       mas->MAS(rgrid, x, y, z, w);   //call the function to do the assigment
+    }
+    void assign_particle(double x, double y, double z, int ind, double w){
+      mas->MAS((fftw_complex*)rgrid, x, y, z, ind, w);   //call the function to do the assigment
+    }
+    /*==========================================================================
+     * Assign the particle to the grid according to the chosen MAS enforcing 
+     * periodic boundary conditions
+     * first version for the real grid, second for the complex one
+     * Parameters
+     * ----------
+     * x, y, z: position in grid units
+     * ind (for the complex grid only): 0 or 1 to assigne the particle to the
+     *   real or immaginary part of the grid
+     * w: weight of the particle
+     *==========================================================================*/
+    void assign_particle_periodic(double x, double y, double z, double w){
+      if( x < 0 ) x += xcells;
+      else if( x>= xcells ) x-= xcells;
+      if( y < 0 ) y += ycells;
+      else if( y>= ycells ) y-= ycells;
+      if( z < 0 ) z += zcells;
+      else if( z>= zcells ) z-= zcells;
+      mas->MAS_periodic(rgrid, x, y, z, w);   //call the function to do the assigment
+    }
+    void assign_particle_periodic(double x, double y, double z, int ind, double w){
+      if( x < 0 ) x += xcells;
+      else if( x>= xcells ) x-= xcells;
+      if( y < 0 ) y += ycells;
+      else if( y>= ycells ) y-= ycells;
+      if( z < 0 ) z += zcells;
+      else if( z>= zcells ) z-= zcells;
+      mas->MAS_periodic((fftw_complex*)rgrid, x, y, z, ind, w);   //call the function to do the assigment
     }
     
     /*==========================================================================

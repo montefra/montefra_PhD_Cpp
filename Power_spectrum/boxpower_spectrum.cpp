@@ -181,19 +181,19 @@ int main(int argc, char* argv[])
     else{   //redshift space distortions
       if( dm.isSet() == true )   //dark matter
 	n_part[0] = read_dm(infile.getValue(), dm.getValue(), grid1, cell_size, 
-	    zdist.getValue(), ncells.getValue());
+	    zdist.getValue());
       else if( n_mlim == 0 )    //no mass limits
 	n_part[0] = read_haloes(infile.getValue(), grid1, cell_size, 
-	    zdist.getValue(), ncells.getValue());
+	    zdist.getValue());
       else if( n_mlim == 1 )   //mass lower limit
 	n_part[0] = read_haloes(infile.getValue(), grid1, mlims[0], cell_size,
-	    zdist.getValue(), ncells.getValue());
+	    zdist.getValue());
       else if( n_mlim == 2 )   //mass bin
 	n_part[0] = read_haloes(infile.getValue(), grid1, mlims[0], mlims[1], cell_size,
-	    zdist.getValue(), ncells.getValue());
+	    zdist.getValue());
       else    //two mass bins for the cross power spectrum
 	n_part = read_haloes(infile.getValue(), grid1, grid2, mlims, cell_size, 
-	    zdist.getValue(), ncells.getValue());
+	    zdist.getValue());
     }
     if(verbose.getValue() && myrank == root)
       std::cout << "Catalogue(s) read and grid(s) filled" << std::endl;

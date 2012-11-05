@@ -90,14 +90,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
  * grid: 'ps_r2c_c2r_mpi_inplace' object
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double cell_size,
-    int zdist, ptrdiff_t ncells);
+    int zdist);
 /*==========================================================================
  * Read the input ascii file containing haloes and fill the grid
  * lower mass limit, redshift space distortions
@@ -108,14 +106,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double ce
  * mmin: lower limit for the mass
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mmin, 
-    double cell_size, int zdist, ptrdiff_t ncells);
+    double cell_size, int zdist);
 /*==========================================================================
  * Read the input ascii file containing haloes and fill the grid
  * mass bin, redshift space distortions
@@ -126,14 +122,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
  * mmin, mmax: lower and upper limit for the mass
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mmin, 
-    double mmax, double cell_size, int zdist, ptrdiff_t ncells);
+    double mmax, double cell_size, int zdist);
 
 /*==========================================================================
  * Read the input ascii file containing haloes and fill the grids
@@ -152,7 +146,7 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
     std::vector<double> mass, double cell_size);
 /*==========================================================================
  * Read the input ascii file containing haloes and fill the grids
- * cross power, no redshift space distortions
+ * cross power, redshift space distortions
  * Parameters
  * ----------
  * ifile: input file name
@@ -160,14 +154,12 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
  * mass: 4 element vector containing the mass limits
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_c2r_mpi_inplace &grid2, 
-    std::vector<double> mass, double cell_size, int zdist, ptrdiff_t ncells);
+    std::vector<double> mass, double cell_size, int zdist);
 
 /*=======================================================================*/
 /* read dark matter catalogues from binary file                          */
@@ -197,13 +189,11 @@ ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid,
  * grid: 'ps_r2c_c2r_mpi_inplace' object
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_dm: number of dark matter particles assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid, 
-    double cell_size, int zdist, ptrdiff_t ncells);
+    double cell_size, int zdist);
 
 #endif

@@ -63,7 +63,7 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double ce
     m = read_line(in, pos, vel);
     if (in.eof() == true) break;    //breack if the end of the file reached
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   delete [] pos;   //clear velocity and position
@@ -96,7 +96,7 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
     if (in.eof() == true) break;    //breack if the end of the file reached
     if(m<mmin) continue;   //if the mass is smaller than the desired one, go to the next line
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   return(n_haloes);  //return the number of haloes assigned to the grid
@@ -127,7 +127,7 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
     if (in.eof() == true) break;    //breack if the end of the file reached
     if(m<mmin || m>mmax) continue;   //if the mass is not in the desired bin, go to the next line
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   return(n_haloes);  //return the number of haloes assigned to the grid
@@ -142,14 +142,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
  * grid: 'ps_r2c_c2r_mpi_inplace' object
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double cell_size,
-    int zdist, ptrdiff_t ncells){
+    int zdist){
   std::ifstream in(ifile.c_str());  //open the input file 
 
   double pos[3], vel[3];  //array containing the three components of position and velocity
@@ -161,11 +159,9 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double ce
     if (in.eof() == true) break;    //breack if the end of the file reached
 
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    pos[zdist] += vel[zdist] / cell_size;   // z distortions in z distortions
-    if(pos[zdist] < 0.) pos[zdist] += ncells;   //periodic boundary conditions
-    else if(pos[zdist] >= ncells) pos[zdist] -= ncells;
+    pos[zdist] += vel[zdist] / cell_size;   // z distortions in zdist direction
 
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   return(n_haloes);  //return the number of haloes assigned to the grid
@@ -180,14 +176,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double ce
  * mmin: lower limit for the mass
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mmin, 
-    double cell_size, int zdist, ptrdiff_t ncells){
+    double cell_size, int zdist){
   std::ifstream in(ifile.c_str());  //open the input file 
 
   double pos[3], vel[3];  //array containing the three components of position and velocity
@@ -200,11 +194,9 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
     if(m<mmin) continue;   //if the mass is smaller than the desired one, go to the next line
 
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    pos[zdist] += vel[zdist] / cell_size;   // z distortions in z distortions
-    if(pos[zdist] < 0.) pos[zdist] += ncells;   //periodic boundary conditions
-    else if(pos[zdist] >= ncells) pos[zdist] -= ncells;
+    pos[zdist] += vel[zdist] / cell_size;   // z distortions in zdist direction
 
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   return(n_haloes);  //return the number of haloes assigned to the grid
@@ -219,14 +211,12 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
  * mmin, mmax: lower and upper limit for the mass
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mmin, 
-    double mmax, double cell_size, int zdist, ptrdiff_t ncells){
+    double mmax, double cell_size, int zdist){
   std::ifstream in(ifile.c_str());  //open the input file 
 
   double pos[3], vel[3];  //array containing the three components of position and velocity
@@ -239,11 +229,9 @@ ptrdiff_t read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double mm
     if(m<mmin || m>mmax) continue;   //if the mass is not in the desired bin, go to the next line
 
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    pos[zdist] += vel[zdist] / cell_size;   // z distortions in z distortions
-    if(pos[zdist] < 0.) pos[zdist] += ncells;   //periodic boundary conditions
-    else if(pos[zdist] >= ncells) pos[zdist] -= ncells;
+    pos[zdist] += vel[zdist] / cell_size;   // z distortions in zdist direction
 
-    grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+    grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
     n_haloes +=1 ; //increment the number of objects
   }
   return(n_haloes);  //return the number of haloes assigned to the grid
@@ -277,12 +265,12 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
     if (in.eof() == true) break;    //breack if the end of the file reached
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
     if( m>=mass[0] && m<mass[1] ){
-      grid1.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid1.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_haloes[0] +=1 ; //increment the number of objects
       both = true;   //set to true if the particle is in the first sample
     }
     if( m>=mass[2] && m<mass[3] ){
-      grid2.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid2.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_haloes[1] +=1 ; //increment the number of objects
       if( both == true) //if the particle is also in the second sample
 	n_haloes[2] +=1;  //add 1 to the third element of the n_haloes
@@ -293,7 +281,7 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
 }
 /*==========================================================================
  * Read the input ascii file containing haloes and fill the grids
- * cross power, no redshift space distortions
+ * cross power, redshift space distortions
  * Parameters
  * ----------
  * ifile: input file name
@@ -301,14 +289,12 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
  * mass: 4 element vector containing the mass limits
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_haloes: number of haloes assigned to the grid
  *==========================================================================*/
 ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_c2r_mpi_inplace &grid2, 
-    std::vector<double> mass, double cell_size, int zdist, ptrdiff_t ncells){
+    std::vector<double> mass, double cell_size, int zdist){
   std::ifstream in(ifile.c_str());  //open the input file 
 
   double pos[3], vel[3];  //array containing the three components of position and velocity
@@ -322,17 +308,15 @@ ptrdiff_t *read_haloes(std::string ifile, ps_r2c_c2r_mpi_inplace &grid1, ps_r2c_
     if (in.eof() == true) break;    //breack if the end of the file reached
 
     for(int i=0; i<3; ++i) pos[i] /= cell_size;   //convert the position in grid units
-    pos[zdist] += vel[zdist] / cell_size;   // z distortions in z distortions
-    if(pos[zdist] < 0.) pos[zdist] += ncells;   //periodic boundary conditions
-    else if(pos[zdist] >= ncells) pos[zdist] -= ncells;
+    pos[zdist] += vel[zdist] / cell_size;   // z distortions in zdist direction
 
     if( m>=mass[0] && m<mass[1] ){
-      grid1.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid1.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_haloes[0] +=1 ; //increment the number of objects
       both = true;   //set to true if the particle is in the first sample
     }
     if( m>=mass[2] && m<mass[3] ){
-      grid2.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid2.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_haloes[1] +=1 ; //increment the number of objects
       if( both == true) //if the particle is also in the second sample
 	n_haloes[2] +=1;  //add 1 to the third element of the n_haloes
@@ -383,7 +367,7 @@ ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid,
       for(int l=0; l<3; ++l) 
         pos[l] = P[j].Pos[l]/cell_size;  //copy the positions
 
-      grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_dm += 1;  //increment the number of particles
     }
     delete[] P;   // free the memory before the next file or exiting the loop
@@ -403,14 +387,12 @@ ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid,
  * grid: 'ps_r2c_c2r_mpi_inplace' object
  * cell_size: side of a cell
  * zdist: 0: x axis; 1: y axis; 2: z axis
- * ncells: number of cells in the direction of the redshif space 
- *   distortions. Used to implement periodic boundary conditions
  * output
  * ------
  * n_dm: number of dark matter particles assigned to the grid
  *==========================================================================*/
 ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid, 
-    double cell_size, int zdist, ptrdiff_t ncells){
+    double cell_size, int zdist){
   std::ifstream in(ifile.c_str());  //open the input file 
 
   char* fname;   //file name to pass to a pure c routine
@@ -438,10 +420,8 @@ ptrdiff_t read_dm(std::string ifile, int n_files, ps_r2c_c2r_mpi_inplace &grid,
         pos[l] = P[j].Pos[l] / cell_size;   //copy the positions in grid units
 
       pos[zdist] += P[j].Vel[zdist] / (vel_Mpch * cell_size);   // z distortions in cells units
-      if( pos[zdist] < 0. ) pos[zdist] += ncells;   //periodic boundary conditions
-      else if( pos[zdist] >= ncells ) pos[zdist] -= ncells;
 
-      grid.assign_particle(pos[0], pos[1], pos[2], 1.);
+      grid.assign_particle_periodic(pos[0], pos[1], pos[2], 1.);
       n_dm += 1;  //increment the number of particles
     }
     delete[] P;   // free the memory before the next file or exiting the loop
