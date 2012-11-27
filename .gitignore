@@ -7,8 +7,8 @@ FT/ft_1D
 Lognormal/lognormal
 MCMC/mcmc
 MCMC/mcmc_w
-Power_spectrum/boxpower_spectrum
-Power_spectrum/fkppower_spectrum
+Power_spectrum/boxpower_spectrum*
+Power_spectrum/fkppower_spectrum*
 Theories/p22
 #test directories
 Tests

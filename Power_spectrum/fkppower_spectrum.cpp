@@ -230,17 +230,6 @@ int main(int argc, char* argv[])
     }
     
     /*==========================================================================*/
-    /* sum the amplitude and number of modes in spherical shells                */
-    /* set in 'set_pks'                                                         */
-    /*==========================================================================*/
-    if( ninfiles == 1 )   //if the window function is wanted
-      gridran.sum_modes2_sph();   //window function
-    else if( ninfiles == 2 )   //if the power spectra are wanted
-      grid1.sum_modes2_sph();   //auto power spectrum
-    else
-      grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
-
-    /*==========================================================================*/
     /* compute normalisation and shot noise                                     */
     /*==========================================================================*/
 
@@ -261,11 +250,34 @@ int main(int argc, char* argv[])
     }
 
     /*==========================================================================*/
+    /* sum the amplitude and number of modes in spherical shells                */
+    /* set in 'set_pks'                                                         */
+    /*==========================================================================*/
+    if( ninfiles == 1 )   //if the window function is wanted
+      gridran.sum_modes2_sph();   //window function
+    else if( ninfiles == 2 )   //if the power spectra are wanted
+      grid1.sum_modes2_sph();   //auto power spectrum
+    else
+      grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
+//  apply normalisation and noise before correcting
+//    if( ninfiles == 1 )   //if the window function is wanted
+//      gridran.sum_modes2_sph(N2, noise);   //window function
+//    else if( ninfiles == 2 )   //if the power spectra are wanted
+//      grid1.sum_modes2_sph(N2, noise);   //auto power spectrum
+//    else
+//      grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
+
+    /*==========================================================================*/
     /* print the output file                                                    */
     /*==========================================================================*/
     if(verbose.getValue() && myrank == root)
       std::cout << "Saving the power spectrum to file: " << outfile.getValue() << std::endl;
-    grid1.savePK(outfile.getValue(), N2, noise, myrank, root, com);
+    if( ninfiles == 1 )   //if the window function is wanted
+      gridran.savePK(outfile.getValue(), N2, noise, myrank, root, com);
+    else
+      grid1.savePK(outfile.getValue(), N2, noise, myrank, root, com);
+    //the shot noise and normalisation already applied
+    //grid1.savePK(outfile.getValue(), 1., 0., myrank, root, com);
 
   } 
   catch (TCLAP::ArgException &e){  // catch any exceptions

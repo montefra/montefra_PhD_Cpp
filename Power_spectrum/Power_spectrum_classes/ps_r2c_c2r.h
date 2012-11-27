@@ -257,6 +257,13 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
      *==========================================================================*/
     void sum_modes2_sph();
     /*==========================================================================
+     * compute the sum of |delta(k)|^2 in spherical shells within the required 
+     * bins, set by 'set_psk', and count the corresponding number of modes
+     * this version normalise and substract the shot noise from every mode before
+     * correcting
+     *==========================================================================*/
+    void sum_modes2_sph(double normalisation, double noise );
+    /*==========================================================================
      * Correct for the MAS aliases (the correction desired is set in
      * 'ps_base::set_MAS_correction(int cor)' ) and compute the sum of 
      * re[delta1(k)*delta2(k)] in spherical shells within the required bins, 

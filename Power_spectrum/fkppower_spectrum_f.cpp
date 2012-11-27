@@ -79,6 +79,7 @@ double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
     sums[2] += w[0]*w[0]*w[1]*w[1];   //sum(w^2)
 
     grid.assign_particle(pos[0], pos[1], pos[2], w[0]*w[1]);
+    //grid.assign_particle_periodic(pos[0], pos[1], pos[2], w[0]*w[1]);
   }
   in.close();   //close the input file
   delete [] pos;   //clear velocity and position
