@@ -36,7 +36,7 @@ std::string get_version()
 double* read_line(std::ifstream &inif, double *pos, double *n, double *z){
   double dummy;  //dummy variable
   double *w = new double[2];  //weights, systematic weights
-  inif >> pos[0] >> pos[1] >> pos[2] >> w[0] >> dummy >> *n >> w[1] >> dummy >> *z;   //read a line
+  inif >> pos[0] >> pos[1] >> pos[2] >> w[0] >> w[1] >> *n >> *z >> dummy >> dummy;   //read a line
   return(w);
 }
 
