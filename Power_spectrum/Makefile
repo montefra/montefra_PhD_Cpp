@@ -3,7 +3,7 @@
 #                                                             # 
 # Default compilation: make                                   #
 # options:                                                    #                 
-#   GPP=... to change the compiler                            #
+#   GPP=... to change the compiler [default: mpicxx]          #
 #   nowarning=  to turn off warnings of the intel compiler    #
 #     [useful -wd981 -wd869 -wd383 -wd593, default none]      #
 #   optimize: optimization flag [default -g]                  #

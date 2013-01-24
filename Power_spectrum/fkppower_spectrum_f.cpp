@@ -15,7 +15,10 @@ std::string get_description()
 /* description of the code   */
 {
   std::string description = "This code computes the angular averaged power spectrum ";
-  description += "from catalogues with a realistic geometry using the FKP estimator.";
+  description += "from catalogues with a realistic geometry using the FKP estimator.\n";
+  description += "The input file must have the following structure:\n";
+  description += "\tx y z w_intr w_correction n(z) z column column\n";
+  description += "(the two columns at the end are there for possible future use)";
   return(description);
 }
 std::string get_version()
