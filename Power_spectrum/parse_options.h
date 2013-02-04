@@ -33,12 +33,21 @@ TCLAP::UnlabeledValueArg<std::string> infile("infile", "Input catalogue name (as
     "", "infile (string)"); 
 
 TCLAP::UnlabeledMultiArg<std::string> infiles("infiles", 
-    std::string("Input catalogue names (ascii). If only one file given, interpreted ") + 
+    std::string("Input catalogue names. If even number of 'infiles' given, they
+      are interpreted as couple of catalogue and random files to load on the same grid.
+      If they are one or 
+      
+      If an even number of files given, it is
+      assumed that they are 
+
+      Input catalogue names (ascii). If only one file given, interpreted ") + 
     std::string("as a random one and the window function is computed. If two, they ") +
     std::string("must be the galaxy and random catalogues and the power spectrum is ") +
     std::string("computed. If four, the cross power spectrum is computed and the files ") +
     std::string("must contain galaxy1 random1 galaxy2 random2 catalogues"), 
     true, "infiles (string)", "infiles (string)"); 
+
+TCLAP::
 
 //verbose mode
 TCLAP::SwitchArg verbose("v", "verbose", "Verbose mode");

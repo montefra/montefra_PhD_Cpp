@@ -17,8 +17,8 @@ std::string get_description()
   std::string description = "This code computes the angular averaged power spectrum ";
   description += "from catalogues with a realistic geometry using the FKP estimator.\n";
   description += "The input file must have the following structure:\n";
-  description += "\tx y z w_intr w_correction n(z) z column column\n";
-  description += "(the two columns at the end are there for possible future use)";
+  description += "\tx y z w_fkp (w_fc+w_rf-1) w_systematics n(z) z column\n";
+  description += "(the last column is ignored)";
   return(description);
 }
 std::string get_version()
@@ -36,11 +36,10 @@ std::string get_version()
  * n: number density
  * z: redshift
  *==========================================================================*/
-double* read_line(std::ifstream &inif, double *pos, double *n, double *z){
-  double dummy;  //dummy variable
-  double *w = new double[2];  //weights, systematic weights
-  inif >> pos[0] >> pos[1] >> pos[2] >> w[0] >> w[1] >> *n >> *z >> dummy >> dummy;   //read a line
-  return(w);
+double read_line(std::ifstream &inif, double *pos, double *w, double *n){
+  double z, dummy;  //dummy variable
+  inif >> pos[0] >> pos[1] >> pos[2] >> w[0] >> w[1] >> w[2] >> *n >> z >> dummy;   //read a line
+  return(z);
 }
 
 /*=======================================================================*/
@@ -65,23 +64,23 @@ double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
   std::ifstream in(ifile.c_str());  //open the input file 
 
   double *pos=new double[3];  //array containing the position
-  double *w = new double[2];  //intrinsic and systematic weights
+  double *w = new double[2];  //weight: w_fkp, w_fc+w_rf-1 and w_sys
   double n, z;   //number density and redhift
   double *sums = new double[3]; //sum(w), sum(n*w^2), sum(w^2)
   for(int i=0; i<3; ++i) sums[i] =0.; //initialise the sums
 
   for(;;){  //loop through the lines of the file
-    w = read_line(in, pos, &n, &z);
+    z = read_line(in, pos, w, &n);
     if (in.eof() == true) break;    //breack if the end of the file reached
     for(int i=0; i<3; ++i) 
       pos[i] = (pos[i]-min_coordinate)/cell_size;   //convert the position in grid units
 
     w[0] /= (1.+pw*n);   //multiply the intrinsic weight by the fkp weight
-    sums[0] += w[0]*w[1];   //sum(w) 
-    sums[1] += w[0]*w[0]*w[1]*w[1] * n;  //sum( n*w^2 )
-    sums[2] += w[0]*w[0]*w[1]*w[1];   //sum(w^2)
+    sums[0] += w[0]*w[1]*w[2];   //sum(w) 
+    sums[1] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2] * n;  //sum( n*w^2 )
+    sums[2] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2];    //sum(w^2)
 
-    grid.assign_particle(pos[0], pos[1], pos[2], w[0]*w[1]);
+    grid.assign_particle(pos[0], pos[1], pos[2], w[0]*w[1]*w[2]);
     //grid.assign_particle_periodic(pos[0], pos[1], pos[2], w[0]*w[1]);
   }
   in.close();   //close the input file

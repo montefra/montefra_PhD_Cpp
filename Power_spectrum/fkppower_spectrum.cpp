@@ -58,25 +58,35 @@ int main(int argc, char* argv[])
     std::vector<std::string> vinfiles = infiles.getValue();
     size_t ninfiles = vinfiles.size();   //number of input files
 
-    if( ninfiles != 1 && ninfiles != 2 && ninfiles != 4 )
+    if( ninfiles != 1 && ninfiles != 2 && ninfiles != 4 ){
       if(myrank == root){ 
         std::cerr << "The number of input files is incorrect. ";
 	std::cerr << "1, 2 or 4 files are accepted to compute, ";
 	std::cerr << "respectivelly, the window function, the ";
 	std::cerr << "power spectrum or the cross power spectrum" << std::endl;
-	MPI_Abort(com, 3);
       }
+      MPI_Barrier(com);
+      MPI_Finalize();
+      exit(3);
+    }
 
     for(size_t i=0; i< ninfiles; ++i)  //check the input files
       if(fileexists(vinfiles[i]) == false){
-	std::cerr << "Input file " +vinfiles[i]+ " does not exists" << std::endl;
-	MPI_Abort( com, 4 );
+        if(myrank == root)
+          std::cerr << "Input file " +vinfiles[i]+ 
+            " does not exists. Cleanup and exit" << std::endl;
+        MPI_Barrier(com);
+        MPI_Finalize();
+        exit(4);
       } 
-    if(fileexists(outfile.getValue()) == true){
-      std::cerr << "Output file " +outfile.getValue()+ " does already exists. " +
-	"Change or rename it" << std::endl;
-      MPI_Abort( com, 5);
-    }   //check the output files
+    if(fileexists(outfile.getValue()) == true){ //check the output file
+      if(myrank == root)
+        std::cerr << "Output file " +outfile.getValue()+ " does already exists. " +
+          "Change or rename it. Cleanup and exit" << std::endl;
+      MPI_Barrier(com);
+      MPI_Finalize();
+      exit(5);
+    }   
 
 
     /*==========================================================================*/
@@ -283,6 +293,7 @@ int main(int argc, char* argv[])
   catch (TCLAP::ArgException &e){  // catch any exceptions
     if(myrank == root) 
       std::cerr << "Error: '" << e.error() << "' for arg '" << e.argId() << "'." <<  std::endl; 
+    MPI_Finalize();
     exit(10);
   }
 

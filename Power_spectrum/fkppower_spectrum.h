@@ -30,13 +30,14 @@ std::string get_version();
  * ----------
  * inif: ifstream object with the file to read
  * output:
- * weight: intrinsic and systematic weights contained in the input file
+ * weight: w_fkp, w_fc+w_rf-1 and w_sys
  * pos[3]: position of the particle
  * n: number density
+ * -------
+ * return:
  * z: redshift
  *==========================================================================*/
-double* read_line(std::ifstream &inif, double *pos, double *n, double *z);
-
+double read_line(std::ifstream &inif, double *pos, double *w, double *n);
 
 /*==========================================================================
  * Read the input ascii file and fill the grid
