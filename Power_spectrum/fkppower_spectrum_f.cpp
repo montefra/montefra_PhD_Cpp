@@ -26,6 +26,37 @@ std::string get_version()
 { return("0.01"); }
 
 /*==========================================================================
+ * Do the checks when the cross power spectrum is required
+ * if files.size > 4, files is resized to 4
+ * Parameters
+ * ----------
+ * files: vector of strings with the input files
+ * myrank: rank of the processor
+ * root: root processor
+ * com: MPI communicator
+ *==========================================================================*/
+void check_crosspk(std::vector<std::string> &files, int myrank, int root,
+    MPI_Comm com){
+  size_t ninfiles = files.size(); //number of files
+  std::cerr << "Not implemented" << std::endl;
+  MPI_Barrier(com);
+  MPI_Finalize();
+  exit(1);
+  if(ninfiles<4){
+    if(myrank == root)
+      std::cerr << "Please give the names of 4 files" << std::endl;
+    MPI_Barrier(com);
+    MPI_Finalize();
+    exit(1);
+  }
+  else if(ninfiles>4){
+    if(myrank == root) 
+      std::cerr << "Only the first four files considered" << std::endl;
+    files.resize(4);
+  }
+}
+
+/*==========================================================================
  * read a line from the file, store position and velocity and return the mass
  * Parameters
  * ----------
@@ -78,6 +109,7 @@ double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
     w[0] /= (1.+pw*n);   //multiply the intrinsic weight by the fkp weight
     sums[0] += w[0]*w[1]*w[2];   //sum(w) 
     sums[1] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2] * n;  //sum( n*w^2 )
+    //sums[1] += w[0]*w[0]*w[1]*w[2]*n;  //sum( n*w^2 )
     sums[2] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2];    //sum(w^2)
 
     grid.assign_particle(pos[0], pos[1], pos[2], w[0]*w[1]*w[2]);

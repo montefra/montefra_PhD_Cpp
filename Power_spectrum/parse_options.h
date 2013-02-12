@@ -19,7 +19,8 @@ double dbsize = 1340.;  //default size of the simulation box
 double dbmax = 4000., dbmin=0.;    //default maximum and minimum coordinates of the box
 std::string dmas="NGP";  //default value for the mass assigment scheme
 int dcorr=0;  //default MAS correction
-double dpw = 20000.;  //default value of pw
+int dnoise=1;  //default shot noise computation method
+double dpw = 0.;  //default value of pw
 
 /*=======================================================================*/
 /* command line arguments                                                */
@@ -33,21 +34,19 @@ TCLAP::UnlabeledValueArg<std::string> infile("infile", "Input catalogue name (as
     "", "infile (string)"); 
 
 TCLAP::UnlabeledMultiArg<std::string> infiles("infiles", 
-    std::string("Input catalogue names. If even number of 'infiles' given, they
-      are interpreted as couple of catalogue and random files to load on the same grid.
-      If they are one or 
-      
-      If an even number of files given, it is
-      assumed that they are 
+    std::string("Input catalogue names. Interpretation of the files:                 ")+
+    std::string("1) if number of infiles even: couples of catalogue/random files ")+
+    std::string("to load on the same grids and the power spectrum;                          ")+
+    std::string("2) if number of infiles odd or 'winonly' given: all files are randoms ")+
+    std::string("are loaded in the same grid a one window function is computed;                          ")+
+    std::string("3) if 4 infiles and 'crosspk' given: two catalogue/random couples ")+
+    std::string("used to computed the cross power spectrum.                                      ")+
+    std::string("In cases 1 and 3 the files must ordered as be 'cat1 ran1 [cat2 ran2 ...]'"),
+    true, "infiles (string)");
 
-      Input catalogue names (ascii). If only one file given, interpreted ") + 
-    std::string("as a random one and the window function is computed. If two, they ") +
-    std::string("must be the galaxy and random catalogues and the power spectrum is ") +
-    std::string("computed. If four, the cross power spectrum is computed and the files ") +
-    std::string("must contain galaxy1 random1 galaxy2 random2 catalogues"), 
-    true, "infiles (string)", "infiles (string)"); 
+TCLAP::SwitchArg winonly("w", "winonly", "The input file must be used to compute the window function");
 
-TCLAP::
+TCLAP::SwitchArg crosspk("", "crosspk", "Compute the cross power spectrum using the 4 files given");
 
 //verbose mode
 TCLAP::SwitchArg verbose("v", "verbose", "Verbose mode");
@@ -103,6 +102,17 @@ TCLAP::ValueArg<int> corr("", "correction", std::string("MAS correction. 0: no c
 //pw to be used in creating the fkp or pvp weights
 TCLAP::ValueArg<double> pw("", "pw", std::string("Value of pw used to compute the FKP or ")+
    std::string("the PVP weight. [Default: ") + to_string(dpw) + "]", false, dpw, "PW (double)");
+
+//compute shot noise method
+ichoise.push_back(1);
+ichoise.push_back(2);
+TCLAP::ValuesConstraint<int> choisenoise(ichoise);
+ichoise.clear();
+TCLAP::ValueArg<int> whichnoise("", "noise", 
+    std::string("choise between two methods to compute the noise [Default: ")+to_string(dnoise)+"]          "+
+    std::string("1: noise = (alpha+1)*alpha*sum(w^2_{random})/N^2 (as in FKP 1994)         ")+
+    std::string("2: noise = sum(w^2_{cat}) + alpha^2*sum(w^2_{random})/N^2 (as in Cole et al. 2005)"),
+    false, dnoise, &choisenoise);
 
 //interpret the input file name as a root of a set of binary files
 std::string descr = "N, positive";

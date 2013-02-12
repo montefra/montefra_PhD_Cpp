@@ -165,13 +165,27 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
      * rangrid: FFTW grid of double with the same size of rgrid containin the 
      *   random points
      * alpha: sum(w_g)/sum(w_r)
-     * output
-     * ------
-     * alpha
      *==========================================================================*/
-    double to_Fr(double *rangrid, double alpha){
+    void to_Fr(double *rangrid, double alpha){
       for(ptrdiff_t i=0; i<2*alloc_local; ++i) rgrid[i] -= alpha * rangrid[i];
-      return( alpha );
+    }
+
+    /*==========================================================================
+     * compute the F(r) density field from the as rgrid - alpha*randomgrid
+     * Parameters
+     * ----------
+     * rangrid: FFTW grid of double with the same size of rgrid containin the 
+     *   random points
+     * alpha: sum(w_g)/sum(w_r)
+     * N: normalisation of F(r) = N * (n_g - alpha*n_r)
+     *==========================================================================*/
+    void to_Fr(double *rangrid, double alpha, double N){
+      double min = 0.;
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i){
+        rgrid[i] = (rgrid[i] - alpha * rangrid[i])*N;
+        min = rgrid[i]<min ? rgrid[i] : min;
+      }
+      std::cout << "minimum: " << min << std::endl;
     }
 
     /*==========================================================================

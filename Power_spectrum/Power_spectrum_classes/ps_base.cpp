@@ -176,7 +176,6 @@ void ps_base::execute_plan(int sign){
   }
 }
 
-
 /*==========================================================================
  * single processor: compute the average of |delta|^2 per bin and 
  * save an ascii file with the spherical averaged power spectrum. 
@@ -186,11 +185,16 @@ void ps_base::execute_plan(int sign){
  * ofile: name of the output file
  * normalisation: normalisation to apply to the power spectrum
  * noise: shot noise amplitude
+ * header: (multiline) string to add at the beginning of file. 
+ *   Default: "none", no header
  *==========================================================================*/
-void ps_base::savePK(std::string ofile, double normalisation, double noise)
+void ps_base::savePK(std::string ofile, double normalisation, double noise,
+    std::string header)
 {
   std::ofstream out(ofile.c_str());   //open the output file
-  out << "#	k	P(k)	P(k)+noise" << std::endl;   //write an header
+  if(header.compare("none") != 0) // print the give header to file
+    out << header << std::endl;
+  out << "#	k	P(k)	P(k)+noise      n_modes" << std::endl;   //write an header
   //set the precision for the output 
   out.setf(std::ios_base::scientific);
   out.precision(6);
@@ -198,10 +202,11 @@ void ps_base::savePK(std::string ofile, double normalisation, double noise)
 
   for(ptrdiff_t i=0; i<abs(psnbins); ++i){
     if(psn_modes[i] == 0)   //if there are no modes in the bins, print 0
-      out << psk[i] << "\t" << 0. << "\t" << 0. << std::endl;
+      out << psk[i] << "\t" << 0. << "\t" << 0. << "\t" << 0. << std::endl;
     else{   // if there are modes
       psPK[i] = normalisation * psPK[i] / psn_modes[i];  //do the averange
-      out << psk[i] << "\t" << psPK[i] - noise << "\t" << psPK[i] << std::endl;
+      out << psk[i] << "\t" << psPK[i] - noise << "\t" << psPK[i] << "\t" <<
+        psn_modes[i] << std::endl;
     }
   }
   out.close();  //close the file
@@ -234,25 +239,55 @@ void ps_base::savePK(std::string ofile, double normalisation, double noise,
   MPI_Reduce(psn_modes, psn_modes_root, abs(psnbins), MPI_LONG, MPI_SUM, root, com);
 
   if(myrank==root){   //only in the root
-
-    std::ofstream out(ofile.c_str());   //open the output file
-    out << "#	k	P(k)	P(k)+noise" << std::endl;   //write an header
-    //set the precision for the output 
-    out.setf(std::ios_base::scientific);
-    out.precision(6);
-    out.width(9);
-
+    // copy psPK_root and psn_modes_root back into psPK and psn_modes in the root
     for(ptrdiff_t i=0; i<abs(psnbins); ++i){
-      if(psn_modes_root[i] == 0)   //if there are no modes in the bins, print 0
-        out << psk[i] << "\t" << 0. << "\t" << 0. << std::endl;
-      else{   // if there are modes
-        psPK_root[i] = normalisation * psPK_root[i] / psn_modes_root[i];  //do the averange
-        out << psk[i] << "\t" << psPK_root[i] - noise << "\t" << psPK_root[i] << std::endl;
-      }
+      psPK[i] = psPK_root[i];
+      psn_modes[i] = psn_modes_root[i];
     }
-    out.close();  //close the file
     delete []psPK_root;    //dealloc the local array
     delete [] psn_modes_root;
+
+    savePK(ofile, normalisation, noise);  // save the power spectrum to file
+  }
+}
+/*==========================================================================
+ * MPI: broadcast the sum of the deltas to the root processor, compute the
+ * average of |delta|^2 per bin and save an ascii file with the spherical
+ * averaged power spectrum. The output file has the structure:
+ * k, P(k), P(k)+shot noise
+ * Parameters
+ * ----------
+ * ofile: name of the output file
+ * normalisation: multiplicative normalisation to apply to the power spectrum
+ * noise: shot noise amplitude
+ * header: (multiline) string to add at the beginning of file. 
+ * myrank: rank of the processor
+ * root: root processor
+ * com: MPI communicator
+ *==========================================================================*/
+void ps_base::savePK(std::string ofile, double normalisation, double noise,
+    std::string header, int myrank, int root, MPI_Comm com)
+{
+  double *psPK_root;   //arrays in the root to which sum |delta|^2 is broadcasted
+  long *psn_modes_root;    //arrays in the root to which number of modes is broadcasted
+  if(myrank==root){   //allocate these array in the root
+    psPK_root = new double[abs(psnbins)];   //alloc the P(k)
+    psn_modes_root = new long[abs(psnbins)];   //alloc the number of modes per bin
+  }
+  //sum all the delta^2 and number of modes in the root processor
+  MPI_Reduce(psPK, psPK_root, abs(psnbins), MPI_DOUBLE, MPI_SUM, root, com);
+  MPI_Reduce(psn_modes, psn_modes_root, abs(psnbins), MPI_LONG, MPI_SUM, root, com);
+
+  if(myrank==root){   //only in the root
+    // copy psPK_root and psn_modes_root back into psPK and psn_modes in the root
+    for(ptrdiff_t i=0; i<abs(psnbins); ++i){
+      psPK[i] = psPK_root[i];
+      psn_modes[i] = psn_modes_root[i];
+    }
+    delete []psPK_root;    //dealloc the local array
+    delete [] psn_modes_root;
+
+    savePK(ofile, normalisation, noise, header);  // save the power spectrum to file
   }
 }
 

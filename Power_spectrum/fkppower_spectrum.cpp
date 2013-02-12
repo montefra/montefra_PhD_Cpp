@@ -35,39 +35,43 @@ int main(int argc, char* argv[])
     TCLAP::CmdLine cmd(get_description(), ' ', get_version());
     //very very ugly way to include a file containing the command line options
 #include "parse_options.h"
-    cmd.add( outfile );  //output file name. Add to the command line
-    cmd.add( infiles );   //input file names. Add to the command line
-    cmd.add( verbose );  //verbose mode
-    cmd.add( pw );   //pw for the FKP weight
-    cmd.add( kmax );   //maximum k
-    cmd.add( kmin );   //minimum k
-    cmd.add( nbins); //number of bins. Add to the command line
-    cmd.add( ncells ); //number of cells. Add to the command line
-    cmd.add( bmax );  //maximum coordinate of the fft box
-    cmd.add( bmin );  //maximum coordinate of the fft boxsize of the fft box
-    cmd.add( corr );   //MAS correction
-    cmd.add( mas );   //mass assigment scheme
-    cmd.add( epsilon );  //add the switch to ln(1+delta) transform
+    cmd.add(outfile);  //output file name. Add to the command line
+    cmd.add(infiles);   //input file names. Add to the command line
+    cmd.add(winonly);   //the input files are for the window function only
+    cmd.add(crosspk);   //cross power spectrum
+    cmd.add(verbose);  //verbose mode
+    cmd.add(pw);   //pw for the FKP weight
+    cmd.add(kmax);   //maximum k
+    cmd.add(kmin);   //minimum k
+    cmd.add(nbins); //number of bins. Add to the command line
+    cmd.add(ncells); //number of cells. Add to the command line
+    cmd.add(bmax);  //maximum coordinate of the fft box
+    cmd.add(bmin);  //maximum coordinate of the fft boxsize of the fft box
+    cmd.add(corr);   //MAS correction
+    cmd.add(mas);   //mass assigment scheme
+    cmd.add(whichnoise);   //noise computation method
+    cmd.add(epsilon);  //add the switch to ln(1+delta) transform
     cmd.parse(argc, argv);  //parse the command line
 
     /*==========================================================================*/
     /* Check the input and output files                                         */
-    /* Check the number of output files and decided what is wanted              */
-    /* 1: window function; 2: power spectrum; 4: cross power spectru            */
     /*==========================================================================*/
     std::vector<std::string> vinfiles = infiles.getValue();
     size_t ninfiles = vinfiles.size();   //number of input files
 
-    if( ninfiles != 1 && ninfiles != 2 && ninfiles != 4 ){
-      if(myrank == root){ 
-        std::cerr << "The number of input files is incorrect. ";
-	std::cerr << "1, 2 or 4 files are accepted to compute, ";
-	std::cerr << "respectivelly, the window function, the ";
-	std::cerr << "power spectrum or the cross power spectrum" << std::endl;
-      }
+    // if the cross power spectrum wanted. PARTIALLY IMPLEMENTED
+    // CHECK NORMALISATION, SHOT NOISE AND WINDOWFUNCTION
+    if(crosspk.getValue() == true){
+      check_crosspk(vinfiles, myrank, root, com);
+    }
+
+    // if the standard power spectrum required check that the number of files is even
+    if(winonly.getValue() == false && ninfiles%2 != 0){
+      if(myrank == root)
+        std::cerr << "An even number of files is needed" << std::endl;
       MPI_Barrier(com);
       MPI_Finalize();
-      exit(3);
+      exit(2);
     }
 
     for(size_t i=0; i< ninfiles; ++i)  //check the input files
@@ -88,7 +92,6 @@ int main(int argc, char* argv[])
       exit(5);
     }   
 
-
     /*==========================================================================*/
     /* initialise the class for the FFT and read and/or write the wisdom        */
     /*==========================================================================*/
@@ -96,97 +99,129 @@ int main(int argc, char* argv[])
                                          //x direction per processor
     if(verbose.getValue() && myrank == root) std::cout << "Initialising the grid" << std::endl;
 
-    ps_r2c_c2r_mpi_inplace grid2(ncells.getValue(), com, 
-	&local_n0, &local_0_start); //constructor of the second grid that will be FFT
-    if( ninfiles < 4 ) //if the window function or the auto power spectrum required 
-      grid2.free_grid();  //free the space of grid2
+    //initialise the FFT objects
+    ps_r2c_c2r_mpi_inplace *grid1;
+    ps_r2c_c2r_mpi_inplace *grid2;    
+    ps_r2c_c2r_mpi_inplace *gridran;
 
-    ps_r2c_c2r_mpi_inplace grid1(ncells.getValue(), com, 
-	&local_n0, &local_0_start); //constructor of the first grid that will be FFT
-    if( ninfiles == 1 ) //if the window function required 
-      grid1.free_grid();  //free the space of grid1
-
-    ps_r2c_c2r_mpi_inplace gridran(ncells.getValue(), com, 
-	&local_n0, &local_0_start); //constructor for the grid containing the random
+    // the one grid is used in any case
+    grid1 = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
+        &local_0_start); 
+    if(winonly.getValue() == false) //power spectrum
+      gridran = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
+          &local_0_start); 
+    if(crosspk.getValue() == true) //cross power spectrum
+      grid2 = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
+          &local_0_start); 
 
     //FFTW wisdom file name
     std::string wisdom_fname = "r2c_c2r_inplace_mpi."+to_string(ncells.getValue())+".wis";
     //try to read the fftw wisdom
-    int err = gridran.read_wisdom(wisdom_fname, myrank, com);
+    int err = grid1->read_wisdom(wisdom_fname, myrank, com);
     if(verbose.getValue() && myrank == root){ 
       if(err == 1) std::cout << "Wisdom read successfully" << std::endl;
       else std::cout << "Wisdom not read or not found" << std::endl;
     }
 
-    gridran.create_plan(FFTW_FORWARD);    
-    if( ninfiles != 1 ) //if the power spectra wanted
-      grid1.create_plan(FFTW_FORWARD);    //create the real to complex plan
-    if( ninfiles == 4 )   //if the cross power spectrum wanted
-      grid1.create_plan(FFTW_FORWARD);    //create the real to complex plan
+    //create the real to complex plan
+      grid1->create_plan(FFTW_FORWARD);
+    if(winonly.getValue() == false) //power spectrum
+      gridran->create_plan(FFTW_FORWARD);    
+    if(crosspk.getValue() == true) //cross power spectrum
+      grid2->create_plan(FFTW_FORWARD);
     if(verbose.getValue() && myrank == root)
       std::cout << "Plan created" << std::endl;
 
     //try to write the fftw wisdom
-    err = gridran.write_wisdom(wisdom_fname, myrank, com);
+    err = grid1->write_wisdom(wisdom_fname, myrank, com);
     if(verbose.getValue() && myrank == root){ 
       if(err == 1) std::cout << "Wisdom written successfully" << std::endl;
       else std::cout << "Wisdom not written" << std::endl;
     }
     //set to 0 all the elements of the grid
-    gridran.initialise();
-    if( ninfiles != 1 ) //if the power spectra wanted
-      grid1.initialise();
-    if( ninfiles == 4 )   //if the cross power spectrum wanted
-      grid2.initialise();
+    grid1->initialise();
+    if(winonly.getValue() == false) //power spectrum
+      gridran->initialise();
+    if(crosspk.getValue() == true) //cross power spectrum
+      grid2->initialise();
     
     /*==========================================================================*/
     /* set the values of k associated to the grid and set mas                   */
     /*==========================================================================*/
     //set the values of k for the FFT grid and get the size of the cell
-    double cell_size = gridran.set_k( bmax.getValue() - bmin.getValue() );
-    if( ninfiles != 1 ) //if the power spectra wanted
-      cell_size = grid1.set_k( bmax.getValue() - bmin.getValue() );
-    if( ninfiles == 4 )   //if the cross power spectrum wanted
-      cell_size = grid2.set_k( bmax.getValue() - bmin.getValue() );
+    double cell_size = grid1->set_k( bmax.getValue() - bmin.getValue() );
+    if(winonly.getValue() == false) //power spectrum
+      cell_size = gridran->set_k( bmax.getValue() - bmin.getValue() );
+    if(crosspk.getValue() == true) //cross power spectrum
+      cell_size = grid2->set_k( bmax.getValue() - bmin.getValue() );
     
     //set the mas
-    gridran.set_MAS(mas.getValue());
-    if( ninfiles != 1 ) //if the power spectra wanted
-      grid1.set_MAS(mas.getValue());
-    if( ninfiles == 4 )   //if the cross power spectrum wanted
-      grid2.set_MAS(mas.getValue());
+    grid1->set_MAS(mas.getValue());
+    if(winonly.getValue() == false) //power spectrum
+      gridran->set_MAS(mas.getValue());
+    if(crosspk.getValue() == true) //cross power spectrum
+      grid2->set_MAS(mas.getValue());
 
     /*==========================================================================*/
-    /* read the input files                                                     */
+    /* read the input files, compute normalisation and shot noise and create    */
+    /* density fields to fourier transform                                      */
     /*==========================================================================*/
-    //read the file name and fill the grid(s)
-    double *sumsran, *sumscat1, *sumscat2;  //arrays containing the sums done when reading the files
-    double alpha1, alpha2;   //arrays containing the values of alpha=sum(w_g)/sum(w_r)
-    if( ninfiles == 1 ){   //if the window function is required
-      sumsran = read_file(vinfiles[0], gridran, cell_size, bmin.getValue(), pw.getValue());
-      
-      alpha1 = 1.;  //no alpha in this case
+
+    // arrays containing sum(w), sum(n*w^2), sum(w^2)
+    size_t dimsums = 3;  //dimensions of the sums
+    double *sumstemp=new double[dimsums];  //temporary container for the sums
+    double *sumscat1=new double[dimsums];   //sums from the catalogues
+    double *sumscat2=new double[dimsums];   //sums from the catalogues
+    double *sumsran=new double[dimsums];   //sums from the random catalogues
+    for(int i=0; i<dimsums; ++i){ //initialize to 0
+      sumscat1[i] = 0.;
+      sumscat2[i] = 0.;
+      sumsran[i] = 0.;
     }
-    else{  //if the power spectra are required
-      sumscat1 = read_file(vinfiles[0], grid1, cell_size, bmin.getValue(), pw.getValue());
-      sumsran = read_file(vinfiles[1], gridran, cell_size, bmin.getValue(), pw.getValue());
-      //convert the galaxy and random density fields into F(r)
-      alpha1 = grid1.to_Fr(gridran.rgrid, sumscat1[0]/sumsran[0]);  
+    
+    // values of alpha=sum(w_cat)/sum(w_ran) or 1 for window functions
+    double alpha1=1., alpha2=1.;
+    //inverse normalisation square and shot noise 
+    double N2, noise; 
 
-      if( ninfiles == 4 ){  // if hte cross power spectrum wanted
-	gridran.initialise();  //reset the random grid to zero
-	sumscat2 = read_file(vinfiles[2], grid2, cell_size, bmin.getValue(), pw.getValue());
-	sumsran = read_file(vinfiles[3], gridran, cell_size, bmin.getValue(), pw.getValue());
-	//convert the galaxy and random density fields into F(r)
-	alpha2 = grid2.to_Fr(gridran.rgrid, sumscat2[0]/sumsran[0]);  
+    //window function only
+    if(winonly.getValue() == true){
+      for(int i=0; i<ninfiles; ++i){
+        sumstemp = read_file(vinfiles[i], *grid1, cell_size, bmin.getValue(), pw.getValue());
+        for(int j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
       }
-      //free the random grid: non used anymore if the power spectra are required
-      gridran.free_grid();
+      N2 = 1./sumscat1[1];
+      noise = sumscat1[2]*N2;
     }
+    else{
+      if(crosspk.getValue()==false){  // power spectrum
+        for(int i=0; i<ninfiles/2; ++i){
+          sumstemp = read_file(vinfiles[2*i], *grid1, cell_size, bmin.getValue(), pw.getValue());
+          for(int j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
+          sumstemp = read_file(vinfiles[2*i+1], *gridran, cell_size, bmin.getValue(), pw.getValue());
+          for(int j=0; j<dimsums; ++j) sumsran[j] += sumstemp[j];
+          //convert the galaxy and random density fields into F(r)
+        }
+        alpha1 = sumscat1[0]/sumsran[0];
+        N2 = 1./(alpha1*sumsran[1]);
+        //N2 = 1./sumscat1[1];
+        if(whichnoise.getValue() ==  1)
+          noise = (alpha1+1.) * alpha1*sumsran[2] * N2;
+        else
+          noise = (sumscat1[2] + alpha1*alpha1*sumsran[2]) * N2;
+        grid1->to_Fr(gridran->rgrid, alpha1);
+        //grid1->to_Fr(gridran->rgrid, alpha1, sqrt(N2));
+      }
+      else{  // cross power spectrum
+        std::cerr << "NOT IMPLEMENTED" << std::endl;
+      }
+      gridran->free_grid();
+    }
+    delete [] sumstemp; //not used anymore
 
     if(verbose.getValue() && myrank == root){
       std::cout << "Catalogue(s) read and grid(s) filled. ";
-      if(ninfiles != 1) std::cout << "F(r) density field(s) created." ;
+      if(winonly.getValue() == false) std::cout << "F(r) density field(s) created." ;
       std::cout << std::endl;
     }
 
@@ -196,29 +231,21 @@ int main(int argc, char* argv[])
 
     //if required do a logarithmic transform
     if(epsilon.isSet() == true){
-      if( ninfiles == 1 ){   //if the window function is wanted
-	if(epsilon.getValue() < 0) gridran.ln1delta();
-	else gridran.ln1delta(epsilon.getValue());
-      }
-      else{ //if the power spectra are wanted
-	if(epsilon.getValue() < 0) grid1.ln1delta();
-	else grid1.ln1delta(epsilon.getValue());
-	if( ninfiles == 4){ //if cross power spectrum
-	  if(epsilon.getValue() < 0) grid2.ln1delta();
-	  else grid2.ln1delta(epsilon.getValue());
-	}
+      if(epsilon.getValue() < 0) grid1->ln1delta();
+      else grid1->ln1delta(epsilon.getValue());
+
+      if(crosspk.getValue() == true){ // cross power spectrum
+        std::cerr << "NOT IMPLEMENTED" << std::endl;
       }
     }
 
     /*==========================================================================*/
     /* execute the FFT transform                                                */
     /*==========================================================================*/
-    if( ninfiles == 1 )   //if the window function is wanted
-      gridran.execute_plan();
-    else{ //if the power spectra are wanted
-      grid1.execute_plan();
-      if( ninfiles == 4) //if cross power spectrum
-	grid2.execute_plan();
+
+    grid1->execute_plan();
+    if(crosspk.getValue() == true){ // cross power spectrum
+      std::cerr << "NOT IMPLEMENTED" << std::endl;
     }
     if(verbose.getValue() && myrank == root)
       std::cout << "FFT done" << std::endl;
@@ -228,67 +255,50 @@ int main(int argc, char* argv[])
     /* done only on grid1, as grid 2 will be 'hosted' if the cross power is     */
     /* required                                                                 */
     /*==========================================================================*/
-    if( ninfiles == 1 ){   //if the window function is wanted
-      gridran.set_MAS_correction(corr.getValue());   //set the correction for the MAS
-      //set the k bins for the output power spectrum
-      gridran.set_psk(kmax.getValue(), kmin.getValue(), nbins.getValue());
-    }
-    else{ //if the power spectra are wanted
-      grid1.set_MAS_correction(corr.getValue());   //set the correction for the MAS
-      //set the k bins for the output power spectrum
-      grid1.set_psk(kmax.getValue(), kmin.getValue(), nbins.getValue());
-    }
+    //set the correction for the MAS
+    grid1->set_MAS_correction(corr.getValue());   
+    //set the k bins for the output power spectrum
+    grid1->set_psk(kmax.getValue(), kmin.getValue(), nbins.getValue());
     
-    /*==========================================================================*/
-    /* compute normalisation and shot noise                                     */
-    /*==========================================================================*/
-
-    double N2, noise;  //inverse normalisation sqare and shot noise
-    if( ninfiles == 1 ){  //window function
-      N2 = 1./(alpha1*sumsran[1]);
-      noise = sumsran[2]*N2;
-    }
-    else if( ninfiles == 2 ){
-      N2 = 1./(alpha1*sumsran[1]);
-      //noise = (sumscat1[2] + alpha1*alpha1*sumsran[2]) * N2;
-      noise = (alpha1+1.) * alpha1*sumsran[2] * N2;
-    }
-    else{
-      std::cerr << "Implement normalisation and shot noise for the cross power spectra" 
-        << std::endl;
-      MPI_Abort(com, 6);
-    }
 
     /*==========================================================================*/
     /* sum the amplitude and number of modes in spherical shells                */
     /* set in 'set_pks'                                                         */
     /*==========================================================================*/
-    if( ninfiles == 1 )   //if the window function is wanted
-      gridran.sum_modes2_sph();   //window function
-    else if( ninfiles == 2 )   //if the power spectra are wanted
-      grid1.sum_modes2_sph();   //auto power spectrum
-    else
-      grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
-//  apply normalisation and noise before correcting
-//    if( ninfiles == 1 )   //if the window function is wanted
-//      gridran.sum_modes2_sph(N2, noise);   //window function
-//    else if( ninfiles == 2 )   //if the power spectra are wanted
-//      grid1.sum_modes2_sph(N2, noise);   //auto power spectrum
-//    else
-//      grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
+    grid1->sum_modes2_sph();   //auto power spectrum
+    if(crosspk.getValue() == true){ // cross power spectrum
+      std::cerr << "NOT IMPLEMENTED" << std::endl;
+      grid1->sum_modes2_sph(grid2->rgrid);   //cross power spectrum
+      grid2->free_grid();  //cleanup the grid
+    }
 
     /*==========================================================================*/
     /* print the output file                                                    */
     /*==========================================================================*/
     if(verbose.getValue() && myrank == root)
       std::cout << "Saving the power spectrum to file: " << outfile.getValue() << std::endl;
-    if( ninfiles == 1 )   //if the window function is wanted
-      gridran.savePK(outfile.getValue(), N2, noise, myrank, root, com);
-    else
-      grid1.savePK(outfile.getValue(), N2, noise, myrank, root, com);
-    //the shot noise and normalisation already applied
-    //grid1.savePK(outfile.getValue(), 1., 0., myrank, root, com);
+    // create the header to the output file
+    std::string header;
+    header = "# \t sum(w) \t sum(w^2n(z)) \t sum(w^2)\n";
+    header += "#data";
+    for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
+    header += "\n";
+    if(crosspk.getValue() == true){
+      std::cerr << "NOT IMPLEMENTED" << std::endl;
+      header += "#data2";
+      for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
+      header += "\n";
+    }
+    header += "#random";
+    for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumsran[i], 4);
 
+    grid1->savePK(outfile.getValue(), N2, noise, header, myrank, root, com);
+    //the shot noise and normalisation already applied
+    //grid1->savePK(outfile.getValue(), 1., noise, myrank, root, com);
+
+    delete [] sumscat1; //not used anymore
+    delete [] sumscat2; //not used anymore
+    delete [] sumsran; //not used anymore
   } 
   catch (TCLAP::ArgException &e){  // catch any exceptions
     if(myrank == root) 

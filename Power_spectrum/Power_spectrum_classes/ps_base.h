@@ -208,8 +208,11 @@ class ps_base
     * ofile: name of the output file
     * normalisation: normalisation to apply to the power spectrum
     * noise: shot noise amplitude
+    * header: (multiline) string to add at the beginning of file. 
+    *   Default: "none", no header
     *==========================================================================*/
-    void savePK(std::string ofile, double normalisation, double noise);
+    void savePK(std::string ofile, double normalisation, double noise,
+        std::string header="none");
     /*==========================================================================
      * MPI: broadcast the sum of the deltas to the root processor, compute the
      * average of |delta|^2 per bin and save an ascii file with the spherical
@@ -226,6 +229,23 @@ class ps_base
      *==========================================================================*/
     void savePK(std::string ofile, double normalisation, double noise, 
 	int myrank, int root, MPI_Comm com);
+    /*==========================================================================
+     * MPI: broadcast the sum of the deltas to the root processor, compute the
+     * average of |delta|^2 per bin and save an ascii file with the spherical
+     * averaged power spectrum. The output file has the structure:
+     * k, P(k), P(k)+shot noise
+     * Parameters
+     * ----------
+     * ofile: name of the output file
+     * normalisation: normalisation to apply to the power spectrum
+     * noise: shot noise amplitude
+     * header: (multiline) string to add at the beginning of file. 
+     * myrank: rank of the processor
+     * root: root processor
+     * com: MPI communicator
+     *==========================================================================*/
+    void savePK(std::string ofile, double normalisation, double noise,
+        std::string header, int myrank, int root, MPI_Comm com);
 
 };
 

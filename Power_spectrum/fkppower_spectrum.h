@@ -24,6 +24,22 @@
 std::string get_description();
 std::string get_version();
 
+/*=======================================================================*/
+/* check input files                                                     */
+/*=======================================================================*/
+/*==========================================================================
+ * Do the checks when the cross power spectrum is required
+ * if files.size > 4, files is resized to 4
+ * Parameters
+ * ----------
+ * files: vector of strings with the input files
+ * myrank: rank of the processor
+ * root: root processor
+ * com: MPI communicator
+ *==========================================================================*/
+void check_crosspk(std::vector<std::string> &files, int myrank, int root,
+    MPI_Comm com);
+
 /*==========================================================================
  * read a line from the file, store position and velocity and return the mass
  * Parameters

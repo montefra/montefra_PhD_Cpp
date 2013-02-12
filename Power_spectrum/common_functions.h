@@ -24,11 +24,35 @@
  *==========================================================================*/
 //#ifdef MAIN_CPP
 template <typename T>  //set template name
-std::string to_string(T const& value) {
+std::string to_string(T const& value){
     std::stringstream sstr;
     sstr << value;
     return sstr.str();
 }
+
+/*==========================================================================
+ * Convert double to string with required floating point accuracy
+ * Parameters
+ * ----------
+ * value: double 
+ *   value to convert to string
+ * p: int
+ *   number of digits after floating point
+ * output
+ * ------
+ * to_string: string
+ *   std::string of the input value
+ *==========================================================================*/
+//#ifdef MAIN_CPP
+inline std::string to_string(double value, int p){
+    std::stringstream sstr;
+    sstr.setf(std::ios_base::fixed);
+    sstr.precision(p);
+    sstr << value;
+    return sstr.str();
+}
+
+
 //#else
 //template <typename T> std::string to_string(T const& value);
 //#endif
