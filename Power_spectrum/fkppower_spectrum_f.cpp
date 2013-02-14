@@ -57,67 +57,163 @@ void check_crosspk(std::vector<std::string> &files, int myrank, int root,
 }
 
 /*==========================================================================
- * read a line from the file, store position and velocity and return the mass
- * Parameters
- * ----------
- * inif: ifstream object with the file to read
- * output:
- * weight: intrinsic and systematic weights contained in the input file
- * pos[3]: position of the particle
- * n: number density
- * z: redshift
+ * class created to read all the files. Provides a simple interface,
+ * a constructor (inline) that allocates arrays used while reading the files
+ *   and saves all the common information to avoid passing them each time
+ * a function that read the files and save the content into the desired grid
  *==========================================================================*/
-double read_line(std::ifstream &inif, double *pos, double *w, double *n){
-  double z, dummy;  //dummy variable
-  inif >> pos[0] >> pos[1] >> pos[2] >> w[0] >> w[1] >> w[2] >> *n >> z >> dummy;   //read a line
-  return(z);
-}
-
-/*=======================================================================*/
-/* read the galaxy or random catalogues from an ascii file               */
-/*=======================================================================*/
 /*==========================================================================
  * Read the input ascii file and fill the grid
  * Parameters
  * ----------
  * ifile: input file name
  * grid: 'ps_r2c_c2r_mpi_inplace' object
- * cell_size: side of a cell
- * min_coordinate: minimum coordinate of the box used to convert the
- *   the position of each particle in grid units
- * pw: value of P(k) to be used to compute the FKP weights
+ * zrange: array of two float: only objects within the redshift range considered
+ * zrange: range of redshift
+ * ignorew: int (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
+ * repeatw: bool: if true, assign object fl.w[1] times with fl.w[1]=1
  * output
  * ------
  * sums: array containing sum(w), sum(n*w^2), sum(w^2)
  *==========================================================================*/
-double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, 
-    double cell_size, double min_coordinate, double pw){
-  std::ifstream in(ifile.c_str());  //open the input file 
+double *readfiles::read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    std::vector<double> zrange, int ignorew, bool repeatw){
+  double *sums = init_sums(); //sum(w), sum(n*w^2), sum(w^2)
+  
+  if(zrange[1]<=0 && ignorew==-1 && repeatw==false) 
+    read_asitis(ifile, grid, sums);
+  else if(zrange[1]>0 && ignorew==-1 && repeatw==false) 
+    read_zrange(ifile, grid, sums, zrange);
+  else if(zrange[1]<=0 && ignorew!=-1 && repeatw==false) 
+    read_ignorew(ifile, grid, sums, ignorew);
+  else if(zrange[1]<=0 && ignorew==-1 && repeatw==true) 
+    read_repeatw(ifile, grid, sums);
+  else if(zrange[1]>0 && ignorew!=-1 && repeatw==false) 
+    read_zrange_ignorew(ifile, grid, sums, zrange, ignorew);
+  else if(zrange[1]>0 && ignorew==-1 && repeatw==true) 
+    read_zrange_repeatw(ifile, grid, sums, zrange);
+  else if(zrange[1]<=0 && ignorew!=-1 && repeatw==true) 
+    read_ignorew_repeatw(ifile, grid, sums, ignorew);
+  else
+    read_zrange_ignorew_repeatw(ifile, grid, sums, zrange, ignorew);
 
-  double *pos=new double[3];  //array containing the position
-  double *w = new double[2];  //weight: w_fkp, w_fc+w_rf-1 and w_sys
-  double n, z;   //number density and redhift
-  double *sums = new double[3]; //sum(w), sum(n*w^2), sum(w^2)
-  for(int i=0; i<3; ++i) sums[i] =0.; //initialise the sums
-
-  for(;;){  //loop through the lines of the file
-    z = read_line(in, pos, w, &n);
-    if (in.eof() == true) break;    //breack if the end of the file reached
-    for(int i=0; i<3; ++i) 
-      pos[i] = (pos[i]-min_coordinate)/cell_size;   //convert the position in grid units
-
-    w[0] /= (1.+pw*n);   //multiply the intrinsic weight by the fkp weight
-    sums[0] += w[0]*w[1]*w[2];   //sum(w) 
-    sums[1] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2] * n;  //sum( n*w^2 )
-    //sums[1] += w[0]*w[0]*w[1]*w[2]*n;  //sum( n*w^2 )
-    sums[2] += w[0]*w[0]*w[1]*w[1]*w[2]*w[2];    //sum(w^2)
-
-    grid.assign_particle(pos[0], pos[1], pos[2], w[0]*w[1]*w[2]);
-    //grid.assign_particle_periodic(pos[0], pos[1], pos[2], w[0]*w[1]);
-  }
-  in.close();   //close the input file
-  delete [] pos;   //clear velocity and position
-  delete [] w;
   return(sums);  //return the number of haloes assigned to the grid
 }
 
+/*==========================================================================
+ * read in the file with the various options. 
+ * For argument refer to the description of 'read_file'
+ *==========================================================================*/
+void readfiles::read_asitis(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    double* sums){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    sums_weights(sums);
+    grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+        fl.w[0]*fl.w[1]*fl.w[2]);
+  }
+}
+void readfiles::read_zrange(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    double* sums, std::vector<double> zrange){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
+    sums_weights(sums);
+    grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+        fl.w[0]*fl.w[1]*fl.w[2]);
+  }
+}
+void readfiles::read_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    double* sums, int ignorew){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    fl.w[ignorew] = 1.;
+    sums_weights(sums);
+    grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+        fl.w[0]*fl.w[1]*fl.w[2]);
+  }
+}
+void readfiles::read_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    double* sums){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    int nw = fl.w[1];
+    fl.w[1] = 1.;
+    for(int i=0; i<nw; ++i){
+      sums_weights(sums);
+      grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+          fl.w[0]*fl.w[1]*fl.w[2]);
+    }
+  }
+}
+void readfiles::read_zrange_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace
+    &grid, double* sums, std::vector<double> zrange, int ignorew){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
+    fl.w[ignorew] = 1.;
+    sums_weights(sums);
+    grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+        fl.w[0]*fl.w[1]*fl.w[2]);
+  }
+}
+void readfiles::read_zrange_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace
+    &grid, double* sums, std::vector<double> zrange){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
+    int nw = fl.w[1];
+    fl.w[1] = 1.;
+    for(int i=0; i<nw; ++i){
+      sums_weights(sums);
+      grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+          fl.w[0]*fl.w[1]*fl.w[2]);
+    }
+  }
+}
+void readfiles::read_ignorew_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace
+    &grid, double* sums, int ignorew){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    fl.w[ignorew] = 1.;
+    int nw = fl.w[1];
+    fl.w[1] = 1.;
+    for(int i=0; i<nw; ++i){
+      sums_weights(sums);
+      grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+          fl.w[0]*fl.w[1]*fl.w[2]);
+    }
+  }
+}
+void readfiles::read_zrange_ignorew_repeatw(std::string ifile,
+    ps_r2c_c2r_mpi_inplace &grid, double* sums, std::vector<double> zrange, int
+    ignorew){
+  std::ifstream in(ifile.c_str());  //open the input file 
+  for(;;){  //loop through the lines of the file
+    read_line(in);
+    if(in.eof() == true) break;    //break if the end of the file reached
+    if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
+    fl.w[ignorew] = 1.;
+    int nw = fl.w[1];
+    fl.w[1] = 1.;
+    for(int i=0; i<nw; ++i){
+      sums_weights(sums);
+      grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
+          fl.w[0]*fl.w[1]*fl.w[2]);
+    }
+  }
+}

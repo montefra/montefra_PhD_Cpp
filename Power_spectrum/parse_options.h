@@ -28,7 +28,7 @@ double dpw = 0.;  //default value of pw
 
 //create output file name argument
 TCLAP::UnlabeledValueArg<std::string> outfile("outfile", 
-    "Output file name. Structure: k, P(k), P(k)+noise", true, "", "outfile (string)"); 
+    "Output file name. Structure: k, P(k), P(k)+noise, n_modes", true, "", "outfile (string)"); 
 //create input file(s) name argument
 TCLAP::UnlabeledValueArg<std::string> infile("infile", "Input catalogue name (ascii)", true, 
     "", "infile (string)"); 
@@ -144,5 +144,21 @@ TCLAP::MultiArg<double> mlim("m", "mass-limits", std::string("If not used the po
     std::string("lower mass limit. If called twice the power spectrum is computed in the given ")+
     std::string("mass bins. If called four times the cross power spectrum between two mass bins ")+
     std::string("is computed."), false, "double" );
+
+//redshift range
+TCLAP::MultiArg<double> zrange("", "zrange", "redshift range", false, "[double, double]");
+//ignore either the 'w_fc+w_rf-1' or the systematic weights setting them to 1
+ichoise.push_back(-1); //
+ichoise.push_back(1);
+ichoise.push_back(2);
+TCLAP::ValuesConstraint<int> choiseignorew(ichoise);
+ichoise.clear();
+TCLAP::ValueArg<int> ignorew("", "ignorew", 
+    "Set to 1 'w_fc+w_rf-1' ('ignorew'=1) or 'w_sys' ('ignorew'=2) to 1.",
+    false, -1, &choiseignorew);
+//
+TCLAP::SwitchArg repeatw("", "repeat-w", 
+    "Instead of assigning a particle to the grid with w='w_fc+w_rf-1',\
+    it assigns it w-times with w=1");
 
 #endif

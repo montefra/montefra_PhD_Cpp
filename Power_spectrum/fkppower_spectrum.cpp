@@ -50,6 +50,9 @@ int main(int argc, char* argv[])
     cmd.add(corr);   //MAS correction
     cmd.add(mas);   //mass assigment scheme
     cmd.add(whichnoise);   //noise computation method
+    cmd.add(ignorew);   //ignore some of the weights from the input
+    cmd.add(zrange);  //set zrange
+    cmd.add(repeatw);  //repeat particle w times instead of assigning weigh w
     cmd.add(epsilon);  //add the switch to ln(1+delta) transform
     cmd.parse(argc, argv);  //parse the command line
 
@@ -91,6 +94,36 @@ int main(int argc, char* argv[])
       MPI_Finalize();
       exit(5);
     }   
+
+    /*==========================================================================*/
+    /* check the redshift range                                                 */
+    /*==========================================================================*/
+    std::vector<double> vzrange(2, -1); //default valued for the redshift range
+    if(zrange.isSet() == true){
+      size_t nzrange = zrange.getValue().size(); //get the number of given values
+      if(nzrange<2){ //
+        if(myrank == root)
+          std::cerr << "Two values required by '--zrange' option" << std::endl;
+        MPI_Barrier(com);
+        MPI_Finalize();
+        exit(6);
+      }
+      else if(nzrange>2){
+        if(myrank == root)
+          std::cerr << "Skipping values after the second in option '--zrange'"
+            << std::endl;
+        for(int i=0; i<2; ++i) vzrange[i] = zrange.getValue()[i];
+      }
+      else vzrange = zrange.getValue();
+      if(vzrange[1]<=0){
+        if(myrank == root)
+          std::cerr << "A negative upper value for the redshift range " <<
+            "does not make sense" << std::endl;
+        MPI_Barrier(com);
+        MPI_Finalize();
+        exit(7);
+      }
+    }
 
     /*==========================================================================*/
     /* initialise the class for the FFT and read and/or write the wisdom        */
@@ -173,7 +206,7 @@ int main(int argc, char* argv[])
     double *sumscat1=new double[dimsums];   //sums from the catalogues
     double *sumscat2=new double[dimsums];   //sums from the catalogues
     double *sumsran=new double[dimsums];   //sums from the random catalogues
-    for(int i=0; i<dimsums; ++i){ //initialize to 0
+    for(size_t i=0; i<dimsums; ++i){ //initialize to 0
       sumscat1[i] = 0.;
       sumscat2[i] = 0.;
       sumsran[i] = 0.;
@@ -184,23 +217,27 @@ int main(int argc, char* argv[])
     //inverse normalisation square and shot noise 
     double N2, noise; 
 
+    //initilise the class that reads the file(s)
+    readfiles rf(cell_size, bmin.getValue(), pw.getValue());
+
     //window function only
     if(winonly.getValue() == true){
-      for(int i=0; i<ninfiles; ++i){
-        sumstemp = read_file(vinfiles[i], *grid1, cell_size, bmin.getValue(), pw.getValue());
-        for(int j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
+      for(size_t i=0; i<ninfiles; ++i){
+        sumstemp = rf.read_file(vinfiles[i], *grid1, vzrange, -1, false);
+        for(size_t j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
       }
       N2 = 1./sumscat1[1];
       noise = sumscat1[2]*N2;
     }
     else{
       if(crosspk.getValue()==false){  // power spectrum
-        for(int i=0; i<ninfiles/2; ++i){
-          sumstemp = read_file(vinfiles[2*i], *grid1, cell_size, bmin.getValue(), pw.getValue());
-          for(int j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
-          sumstemp = read_file(vinfiles[2*i+1], *gridran, cell_size, bmin.getValue(), pw.getValue());
-          for(int j=0; j<dimsums; ++j) sumsran[j] += sumstemp[j];
-          //convert the galaxy and random density fields into F(r)
+        for(size_t i=0; i<ninfiles/2; ++i){
+          sumstemp = rf.read_file(vinfiles[2*i], *grid1, vzrange,  //read the catalogue
+              ignorew.getValue(), repeatw.getValue());
+          for(size_t j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
+          sumstemp = rf.read_file(vinfiles[2*i+1], *gridran, vzrange, -1,    //read the random
+              false);
+          for(size_t j=0; j<dimsums; ++j) sumsran[j] += sumstemp[j];
         }
         alpha1 = sumscat1[0]/sumsran[0];
         N2 = 1./(alpha1*sumsran[1]);
@@ -209,6 +246,7 @@ int main(int argc, char* argv[])
           noise = (alpha1+1.) * alpha1*sumsran[2] * N2;
         else
           noise = (sumscat1[2] + alpha1*alpha1*sumsran[2]) * N2;
+        //convert the galaxy and random density fields into F(r)
         grid1->to_Fr(gridran->rgrid, alpha1);
         //grid1->to_Fr(gridran->rgrid, alpha1, sqrt(N2));
       }
@@ -281,16 +319,16 @@ int main(int argc, char* argv[])
     std::string header;
     header = "# \t sum(w) \t sum(w^2n(z)) \t sum(w^2)\n";
     header += "#data";
-    for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
+    for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
     header += "\n";
     if(crosspk.getValue() == true){
       std::cerr << "NOT IMPLEMENTED" << std::endl;
       header += "#data2";
-      for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
+      for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
       header += "\n";
     }
     header += "#random";
-    for(int i=0; i<dimsums; ++i) header += "\t"+to_string(sumsran[i], 4);
+    for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumsran[i], 4);
 
     grid1->savePK(outfile.getValue(), N2, noise, header, myrank, root, com);
     //the shot noise and normalisation already applied
