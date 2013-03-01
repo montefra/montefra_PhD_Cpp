@@ -146,7 +146,8 @@ TCLAP::MultiArg<double> mlim("m", "mass-limits", std::string("If not used the po
     std::string("is computed."), false, "double" );
 
 //redshift range
-TCLAP::MultiArg<double> zrange("", "zrange", "redshift range", false, "[double, double]");
+TCLAP::MultiArg<double> zrange("", "zrange", "redshift range. Two values accepted", 
+    false, "double");
 //ignore either the 'w_fc+w_rf-1' or the systematic weights setting them to 1
 ichoise.push_back(-1); //
 ichoise.push_back(1);
@@ -157,7 +158,7 @@ TCLAP::ValueArg<int> ignorew("", "ignorew",
     "Set to 1 'w_fc+w_rf-1' ('ignorew'=1) or 'w_sys' ('ignorew'=2) to 1.",
     false, -1, &choiseignorew);
 //
-TCLAP::SwitchArg repeatw("", "repeat-w", 
+TCLAP::SwitchArg repeatw("", "repeatw", 
     "Instead of assigning a particle to the grid with w='w_fc+w_rf-1',\
     it assigns it w-times with w=1");
 
