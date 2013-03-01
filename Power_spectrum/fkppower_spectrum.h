@@ -112,19 +112,19 @@ class readfiles{
      * read in the file with the various options. 
      * For argument refer to the description of 'read_file'
      *==========================================================================*/
-    void read_asitis(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums);
-    void read_zrange(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums,
+    void read_asitis(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums);
+    void read_zrange(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
         std::vector<double> zrange);
-    void read_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums,
+    void read_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
         int ignorew);
-    void read_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums);
-    void read_zrange_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    void read_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums);
+    void read_zrange_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
         double* sums, std::vector<double> zrange, int ignorew);
-    void read_zrange_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    void read_zrange_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
         double* sums, std::vector<double> zrange);
-    void read_ignorew_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    void read_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
         double* sums, int ignorew);
-    void read_zrange_ignorew_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace
+    void read_zrange_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
         &grid, double* sums, std::vector<double> zrange, int ignorew);
 
     /*==========================================================================
