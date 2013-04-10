@@ -124,6 +124,19 @@ int main(int argc, char* argv[])
         exit(7);
       }
     }
+    /*==========================================================================*/
+    /* check ignorew                                                            */
+    /* if ignorew is not given create a vector with one element -1              */
+    /* else check how many numbers are given and avoid repetitions              */
+    /*==========================================================================*/
+    std::vector<int> vignorew; //default value for ignorew
+    if(ignorew.isSet() == true){
+      std::vector<int> temp = ignorew.getValue();
+      for(int i=1; i<3; ++i)
+        if(std::find(temp.begin(), temp.end(), i) != temp.end())
+          vignorew.push_back(i);
+    }
+    else vignorew.push_back(-1);
 
     /*==========================================================================*/
     /* initialise the class for the FFT and read and/or write the wisdom        */
@@ -223,7 +236,7 @@ int main(int argc, char* argv[])
     //window function only
     if(winonly.getValue() == true){
       for(size_t i=0; i<ninfiles; ++i){
-        sumstemp = rf.read_file(vinfiles[i], *grid1, vzrange, -1, false);
+        sumstemp = rf.read_file(vinfiles[i], *grid1, vzrange, vignorew, false);
         for(size_t j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
       }
       N2 = 1./sumscat1[1];
@@ -233,10 +246,10 @@ int main(int argc, char* argv[])
       if(crosspk.getValue()==false){  // power spectrum
         for(size_t i=0; i<ninfiles/2; ++i){
           sumstemp = rf.read_file(vinfiles[2*i], *grid1, vzrange,  //read the catalogue
-              ignorew.getValue(), repeatw.getValue());
+              vignorew, repeatw.getValue());
           for(size_t j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
-          sumstemp = rf.read_file(vinfiles[2*i+1], *gridran, vzrange, -1,    //read the random
-              false);
+          sumstemp = rf.read_file(vinfiles[2*i+1], *gridran, vzrange,   //read the random
+              vignorew, false);
           for(size_t j=0; j<dimsums; ++j) sumsran[j] += sumstemp[j];
         }
         alpha1 = sumscat1[0]/sumsran[0];

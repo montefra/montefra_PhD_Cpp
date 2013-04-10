@@ -70,31 +70,31 @@ void check_crosspk(std::vector<std::string> &files, int myrank, int root,
  * grid: 'ps_r2c_c2r_mpi_inplace' object
  * zrange: array of two float: only objects within the redshift range considered
  * zrange: range of redshift
- * ignorew: int (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
+ * ignorew: vector<int> (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
  * repeatw: bool: if true, assign object fl.w[1] times with fl.w[1]=1
  * output
  * ------
  * sums: array containing sum(w), sum(n*w^2), sum(w^2)
  *==========================================================================*/
 double *readfiles::read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
-    std::vector<double> zrange, int ignorew, bool repeatw){
+    std::vector<double> zrange, std::vector<int> ignorew, bool repeatw){
   double *sums = init_sums(); //sum(w), sum(n*w^2), sum(w^2)
 
   std::ifstream in(ifile.c_str());  //open the input file 
   
-  if(zrange[1]<=0 && ignorew==-1 && repeatw==false) 
+  if(zrange[1]<=0 && ignorew[0]==-1 && repeatw==false) 
     read_asitis(in, grid, sums);
-  else if(zrange[1]>0 && ignorew==-1 && repeatw==false) 
+  else if(zrange[1]>0 && ignorew[0]==-1 && repeatw==false) 
     read_zrange(in, grid, sums, zrange);
-  else if(zrange[1]<=0 && ignorew!=-1 && repeatw==false) 
+  else if(zrange[1]<=0 && ignorew[0]!=-1 && repeatw==false) 
     read_ignorew(in, grid, sums, ignorew);
-  else if(zrange[1]<=0 && ignorew==-1 && repeatw==true) 
+  else if(zrange[1]<=0 && ignorew[0]==-1 && repeatw==true) 
     read_repeatw(in, grid, sums);
-  else if(zrange[1]>0 && ignorew!=-1 && repeatw==false) 
+  else if(zrange[1]>0 && ignorew[0]!=-1 && repeatw==false) 
     read_zrange_ignorew(in, grid, sums, zrange, ignorew);
-  else if(zrange[1]>0 && ignorew==-1 && repeatw==true) 
+  else if(zrange[1]>0 && ignorew[0]==-1 && repeatw==true) 
     read_zrange_repeatw(in, grid, sums, zrange);
-  else if(zrange[1]<=0 && ignorew!=-1 && repeatw==true) 
+  else if(zrange[1]<=0 && ignorew[0]!=-1 && repeatw==true) 
     read_ignorew_repeatw(in, grid, sums, ignorew);
   else
     read_zrange_ignorew_repeatw(in, grid, sums, zrange, ignorew);
@@ -130,11 +130,11 @@ void readfiles::read_zrange(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
   }
 }
 void readfiles::read_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
-    double* sums, int ignorew){
+    double* sums, std::vector<int> ignorew){
   for(;;){  //loop through the lines of the file
     read_line(inif);
     if(inif.eof() == true) break;    //break if the end of the file reached
-    fl.w[ignorew] = 1.;
+    for(int i=0; i<ignorew.size(); ++i) fl.w[ignorew[i]] = 1.;
     sums_weights(sums);
     grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
         fl.w[0]*fl.w[1]*fl.w[2]);
@@ -155,12 +155,12 @@ void readfiles::read_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
   }
 }
 void readfiles::read_zrange_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
-    &grid, double* sums, std::vector<double> zrange, int ignorew){
+    &grid, double* sums, std::vector<double> zrange, std::vector<int> ignorew){
   for(;;){  //loop through the lines of the file
     read_line(inif);
     if(inif.eof() == true) break;    //break if the end of the file reached
     if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
-    fl.w[ignorew] = 1.;
+    for(int i=0; i<ignorew.size(); ++i) fl.w[ignorew[i]] = 1.;
     sums_weights(sums);
     grid.assign_particle(fl.pos[0], fl.pos[1], fl.pos[2],
         fl.w[0]*fl.w[1]*fl.w[2]);
@@ -182,11 +182,11 @@ void readfiles::read_zrange_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
   }
 }
 void readfiles::read_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
-    &grid, double* sums, int ignorew){
+    &grid, double* sums, std::vector<int> ignorew){
   for(;;){  //loop through the lines of the file
     read_line(inif);
     if(inif.eof() == true) break;    //break if the end of the file reached
-    fl.w[ignorew] = 1.;
+    for(int i=0; i<ignorew.size(); ++i) fl.w[ignorew[i]] = 1.;
     int nw = fl.w[1];
     fl.w[1] = 1.;
     for(int i=0; i<nw; ++i){
@@ -197,13 +197,13 @@ void readfiles::read_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
   }
 }
 void readfiles::read_zrange_ignorew_repeatw(std::ifstream &inif,
-    ps_r2c_c2r_mpi_inplace &grid, double* sums, std::vector<double> zrange, int
-    ignorew){
+    ps_r2c_c2r_mpi_inplace &grid, double* sums, std::vector<double> zrange, 
+    std::vector<int> ignorew){
   for(;;){  //loop through the lines of the file
     read_line(inif);
     if(inif.eof() == true) break;    //break if the end of the file reached
     if(zrange[0]>fl.z || zrange[1]<fl.z) continue;  //read the next line
-    fl.w[ignorew] = 1.;
+    for(int i=0; i<ignorew.size(); ++i) fl.w[ignorew[i]] = 1.;
     int nw = fl.w[1];
     fl.w[1] = 1.;
     for(int i=0; i<nw; ++i){

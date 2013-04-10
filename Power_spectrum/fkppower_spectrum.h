@@ -7,6 +7,7 @@
 #ifndef FKPPOWER_SPECTRUM_H
 #define FKPPOWER_SPECTRUM_H
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -79,14 +80,14 @@ class readfiles{
      * grid: 'ps_r2c_c2r_mpi_inplace' object
      * zrange: array of two float: only objects within the redshift range considered
      * zrange: range of redshift
-     * ignorew: int (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
+     * ignorew: vector<int> (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
      * repeatw: bool: if true, assign object fl.w[1] times with fl.w[1]=1
      * output
      * ------
      * sums: array containing sum(w), sum(n*w^2), sum(w^2)
      *==========================================================================*/
     double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
-        std::vector<double> zrange, int ignorew, bool repeatw);
+        std::vector<double> zrange, std::vector<int> ignorew, bool repeatw);
 
   private: 
 
@@ -116,16 +117,16 @@ class readfiles{
     void read_zrange(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
         std::vector<double> zrange);
     void read_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
-        int ignorew);
+        std::vector<int> ignorew);
     void read_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums);
     void read_zrange_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
-        double* sums, std::vector<double> zrange, int ignorew);
+        double* sums, std::vector<double> zrange, std::vector<int> ignorew);
     void read_zrange_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
         double* sums, std::vector<double> zrange);
     void read_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
-        double* sums, int ignorew);
+        double* sums, std::vector<int> ignorew);
     void read_zrange_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
-        &grid, double* sums, std::vector<double> zrange, int ignorew);
+        &grid, double* sums, std::vector<double> zrange, std::vector<int> ignorew);
 
     /*==========================================================================
      * read a line from the file, store position, weights, number density and
