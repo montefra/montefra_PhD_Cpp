@@ -49,7 +49,7 @@ $(Objects_p22): %.o: %.cpp $(wildcard *.h)
 
 #create the object files for common functions
 $(CFo): %.o: %.cpp %.h
-	$(MAKE) GPP=$(GPP) MAKEFLAGS='$(compiler_options)' -C $(CFdir)
+	$(MAKE) GPP=$(GPP) MAKEFLAGS='$(compiler_options)' -C $(CFDIR)
 
 #clean up
 clean:
