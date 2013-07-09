@@ -24,22 +24,76 @@
 std::string get_description();
 std::string get_version();
 
+/*=======================================================================
+ * Print error, finalise mpi and exit
+ * Parameters
+ * ----------
+ *  message: error message to print to std err
+ *  code: error code
+ *  myrank: rank of the processor
+ *  root: root processor
+ *  com: MPI communicator
+ *=======================================================================*/
+void on_error(std:string message, int error_code, int myrank, int, root, MPI_Comm
+    com){
+  if(myrank == root)
+    std::cerr << message << std::endl;
+  MPI_Barrier(com);
+  MPI_Finalize();
+  exit(error_code);
+}
+
 /*=======================================================================*/
 /* check input files                                                     */
 /*=======================================================================*/
 /*==========================================================================
- * Do the checks when the cross power spectrum is required
- * if files.size > 4, files is resized to 4
+ * Check the number of files 
  * Parameters
  * ----------
  * files: vector of strings with the input files
+ * winonly: if the window function required
+ * cross: if the cross power spectrum or window function required
  * myrank: rank of the processor
  * root: root processor
  * com: MPI communicator
  *==========================================================================*/
-void check_crosspk(std::vector<std::string> &files, int myrank, int root,
-    MPI_Comm com);
+void check_input_files(std::vector<std::string> &files, bool winonly, bool
+    cross, int myrank, int root, MPI_Comm com);
 
+/*==========================================================================
+ * compute alpha, square of the inverse normalisation and 
+ * shot noise amplitude given the sums over the weights
+ *==========================================================================*/
+/*==========================================================================
+ * for the window function
+ * Parameters
+ * ----------
+ *  sums: array containing sum(w), sum(n*w^2), sum(w^2)
+ *  alpha: in this case 1 (for complementarity with the power spectrum case)
+ *  N2: square of the inverse normalisation
+ *  noise: shot noise amplitude
+ *==========================================================================*/
+void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise){
+  *alpha=1.;  //alpha is one in this case
+  *N2 = 1./sums[1];
+  *noise = sums[2]*N2;
+}
+/*==========================================================================
+ * for the power spectrum
+ * Parameters
+ * ----------
+ *  sumsdat: array containing sum(w), sum(n*w^2), sum(w^2) from the data
+ *  sumsran: array containing sum(w), sum(n*w^2), sum(w^2) from the random
+ *  alpha: in this case 1 (for complementarity with the power spectrum case)
+ *  N2: square of the inverse normalisation
+ *  noise: shot noise amplitude
+ *==========================================================================*/
+void alpha_N_sh(double *sumsdat, double *sumsran, double *alpha, double *N2,
+    double *noise){
+  *alpha = sumscat[0]/sumsran[0];
+  *N2 = 1./(*alpha*sumsran[1]);
+  *noise = (*alpha+1.) * *alpha*sumsran[2] * *N2;
+}
 
 /*==========================================================================
  * class created to read all the files. Provides a simple interface,

@@ -31,28 +31,31 @@ std::string get_version()
  * Parameters
  * ----------
  * files: vector of strings with the input files
+ * winonly: if the window function required
+ * cross: if the cross power spectrum or window function required
  * myrank: rank of the processor
  * root: root processor
  * com: MPI communicator
  *==========================================================================*/
-void check_crosspk(std::vector<std::string> &files, int myrank, int root,
-    MPI_Comm com){
+void check_input_files(std::vector<std::string> &files, bool winonly, bool
+    cross, int myrank, int root, MPI_Comm com){
   size_t ninfiles = files.size(); //number of files
-  std::cerr << "Not implemented" << std::endl;
-  MPI_Barrier(com);
-  MPI_Finalize();
-  exit(1);
-  if(ninfiles<4){
-    if(myrank == root)
-      std::cerr << "Please give the names of 4 files" << std::endl;
-    MPI_Barrier(com);
-    MPI_Finalize();
-    exit(1);
+
+  if(winonly == true){
+    if(ninfiles!=1 && ninfiles!=2)
+      on_error("Only one or two files are required for the window function",
+          1, myrank, root, MPI_Comm);
+    if(cross == true $$ ninfiles !=2)
+      on_error("To compute the cross window function two files are needed",
+          2, myrank, root, MPI_Comm);
   }
-  else if(ninfiles>4){
-    if(myrank == root) 
-      std::cerr << "Only the first four files considered" << std::endl;
-    files.resize(4);
+  else {
+    if(ninfiles!=2 && ninfiles!=4)
+      on_error("Only two or four files are required for the power spectrum",
+          3, myrank, root, MPI_Comm);
+    if(cross == true $$ ninfiles !=4)
+      on_error("To compute the cross power spectrum two files are needed",
+          4, myrank, root, MPI_Comm);
   }
 }
 
