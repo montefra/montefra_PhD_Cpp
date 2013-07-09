@@ -65,6 +65,25 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
     /* class destructor                                                         */
     ~ps_r2c_c2r_mpi_inplace();  //destructor
 
+
+    /*==========================================================================
+     * Operators
+     *==========================================================================*/
+    /*==========================================================================
+     * Compound assignment
+     * Parameters
+     * ----------
+     *  rhs: ps_r2c_c2r_mpi_inplace instance to be added
+     * output
+     * ------
+     *  ps_r2c_c2r_mpi_inplace with the object and the added grid
+     *==========================================================================*/
+    ps_r2c_c2r_mpi_inplace & operator+=(const ps_r2c_c2r_mpi_inplace &rhs){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        this.rgrid[i] += rhs.rgrid[i];
+      return *this
+    }
+
     /*==========================================================================
      * free the fftw grid
      *==========================================================================*/
@@ -166,7 +185,7 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
      *   random points
      * alpha: sum(w_g)/sum(w_r)
      *==========================================================================*/
-    void to_Fr(double *rangrid, double alpha){
+    void to_Fr(double *rangrid, double alpha, double N){
       for(ptrdiff_t i=0; i<2*alloc_local; ++i) rgrid[i] -= alpha * rangrid[i];
     }
 
@@ -177,15 +196,25 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
      * rangrid: FFTW grid of double with the same size of rgrid containin the 
      *   random points
      * alpha: sum(w_g)/sum(w_r)
-     * N: normalisation of F(r) = N * (n_g - alpha*n_r)
+     * N: mormalisation to devide from the power spectrum sqrt(sum(n(z)*w^2))
      *==========================================================================*/
     void to_Fr(double *rangrid, double alpha, double N){
-      double min = 0.;
-      for(ptrdiff_t i=0; i<2*alloc_local; ++i){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
         rgrid[i] = (rgrid[i] - alpha * rangrid[i])*N;
-        min = rgrid[i]<min ? rgrid[i] : min;
-      }
-      std::cout << "minimum: " << min << std::endl;
+    }
+
+    /*==========================================================================
+     * sum two grids together 
+     * Parameters
+     * ----------
+     * rangrid: FFTW grid of double with the same size of rgrid containin the 
+     *   random points
+     * alpha: sum(w_g)/sum(w_r)
+     * N: mormalisation to devide from the power spectrum sqrt(sum(n(z)*w^2))
+     *==========================================================================*/
+    void to_Fr(double *rangrid, double alpha, double N){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        rgrid[i] = (rgrid[i] - alpha * rangrid[i])*N;
     }
 
     /*==========================================================================
@@ -236,7 +265,7 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
     }
 
     /*==========================================================================
-     * Subtract from each cell the mean of all the cells
+      - alpha * rangrid[i])*N;* Subtract from each cell the mean of all the cells
      * Parameters
      * ----------
      * root: processor number where to collect the total sum 

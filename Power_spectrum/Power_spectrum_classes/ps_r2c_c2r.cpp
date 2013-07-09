@@ -202,7 +202,7 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(){
     }
   }
   //if the mode with k=0 is included in the computation, take it out of the sum
-  //must be counted only once, while all the others count two for simmetry of i
+  //must be counted only once, while all the others count two for simmetry of
   //the real to complex transform
   if( i == 0 && modk == 0 ){
     psPK[kind] -= d2;
@@ -246,7 +246,7 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double normalisation, double noise )
   //if the mode with k=0 is included in the computation, take it out of the sum
   //must be counted only once, while all the others count two for simmetry of i
   //the real to complex transform
-  if( i == 0 && modk == 0 ){
+  if(i == 0 && modk == 0 ){
     psPK[kind] -= d2;
     psn_modes[kind] -= 1;
   }
@@ -262,16 +262,17 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double normalisation, double noise )
  *==========================================================================*/
 void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double *rgrid2){
   ptrdiff_t kind;   //index of |k| in the power spectrum array
-  double d2;   //|delta(k)|^2 (corrected if requested)
+  double modk, temp_modk, d2;   //|k| of the cell and temporary value, |delta(k)|^2 (corrected if requested)
+  ptrdiff_t i, j, l;  //loop integers
 
-  for(ptrdiff_t i=local_nx-1; i>=0; --i){       //loop over the cells in the x direction
-    for(ptrdiff_t j=ycells-1; j>=0; --j){       //loop over the cells in the y direction
-      for(ptrdiff_t l=zcellso2_1; l>=0; --l){ //loop over the cells in the z direction
-        double modk = sqrt( kcells[i+local_x_start]*kcells[i+local_x_start] +
+  for(i=local_nx-1; i>=0; --i){       //loop over the cells in the x direction
+    for(j=ycells-1; j>=0; --j){       //loop over the cells in the y direction
+      for(l=zcellso2_1-1; l>=0; --l){ //loop over the cells in the z direction
+        modk = sqrt( kcells[i+local_x_start]*kcells[i+local_x_start] +
 	    kcells[j]*kcells[j] + kcells[l]*kcells[l]);   //|k| of the cell
-	if( psnbins>0) modk -= pskmin;   //subtract the minimum value of k for the output power spectrum
-	else modk = log10(modk/pskmin);  //do the same but in log space
-	kind = modk/psdeltak;   //convert the |k| in power spectrum bin units 
+	if( psnbins>0) temp_modk = modk - pskmin;   //subtract the minimum value of k for the output power spectrum
+	else temp_modk = log10(modk/pskmin);  //do the same but in log space
+	kind = floor(temp_modk/psdeltak);   //convert the |k| in power spectrum bin units 
 
 	if( kind<0 || kind>=abs(psnbins) ) continue;   //if the value of k is smaller or larger than the range, go to the next loop
 
@@ -280,17 +281,16 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double *rgrid2){
 	double deltak_im1 = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //grid1: imaginary part of delta(k)
 	double deltak_im2 = rgrid2[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //grid2: imaginary part of delta(k)
 	d2 = deltak_re1*deltak_re2 + deltak_im1*deltak_im2;    //|delta(k)|^2
-	d2 /= corr->corr( kcells[i+local_x_start], kcells[j], kcells[l] );   //correct for the maf
-
+	d2 /= corr->corr(kcells[i+local_x_start], kcells[j], kcells[l]);   //correct for the maf
 	psPK[kind] += 2*d2;
 	psn_modes[kind] += 2;
       }
     }
   }
   //if the mode with k=0 is included in the computation, take it out of the sum
-  //must be counted only once, while all the others count two for simmetry of i
+  //must be counted only once, while all the others count two for simmetry of
   //the real to complex transform
-  if( kind>=0 && kind<abs(psnbins) ) {
+  if( i == 0 && modk == 0 ){
     psPK[kind] -= d2;
     psn_modes[kind] -= 1;
   }
