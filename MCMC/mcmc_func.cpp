@@ -13,27 +13,43 @@
 /*Function: read data from file:                                            */
 /* input :name file and int 'which' to know what kind of file is load:      */
 /* 0) linear P(k): k, P_{lin}(k) and first ordert PT contribution:          */
-/* 1) input data: k, P(k), var                                              */
-/* 2) covariance matrix: only the 5h column of interest                     */
+/*   k, P_{1loop}(k)                                                        */
+/* 1) input data: k, P(k), var, n_modes                                     */
+/* 2) covariance matrix                                                     */
 /* 3) kj (only one column): saved in two columns                            */
-/* k, P_{1loop}(k)                                                          */
 /*==========================================================================*/
 int input_data(std::string input_file, std::vector<in_data> &indata, int which)
 {
   in_data read;
   double dummy;
 
-  ifstream in(input_file.c_str());
-  for(;;){
-    if(which==0) in >> read.x >> read.y;   // read the theoretical expectation values
-    else if(which==1) in >> read.x >> read.y >> read.z;  // it reads the third column in the data file
-    else if(which==2) in >> dummy >> dummy >> dummy >> dummy >> read.x;  // it reads the covariance matrix
-    else if(which==3){  //read the file with the kj
-      in >> read.x; 
-      read.y=read.x;
+  std::ifstream in(input_file.c_str());
+  std::string line;   //string containing the line
+  while(getline(in, line)){   //read a line of the input file
+    if(line.find("#") == 0)  //if in the line there is a '#' skip the line (it's likely a comment)
+      continue;
+
+    //save the content of the line to the structure
+    if(which==0){    // read the theoretical expectation values
+      std::stringstream(line) >> read.x >> read.y;
+      indata.push_back(read);
     }
-    if(in.eof() == true) break;
-    else indata.push_back(read);
+    else if(which==1){   // it reads the first three columns in the data file
+      std::stringstream(line) >> read.x >> read.y >> read.z >> dummy;
+      indata.push_back(read);
+    }
+    else if(which==2){   // it reads the covariance matrix
+      std::stringstream ssline(line);  //convert the string to sstream
+      while(!ssline.eof()){  //continue untill the end of the line
+        ssline >> read.x;
+        indata.push_back(read);
+      }
+    }
+    else if(which==3){  //read the file with the kj
+      std::stringstream(line) >> read.x;
+      read.y=read.x;
+      indata.push_back(read);
+    }
   }
   in.close();
 
@@ -76,7 +92,8 @@ gsl_matrix * winmat(std::string winfile, int kimin, int kjmin, int nki, int nkj,
 /* if mod_kmin=true, the number of discarted bins for k < kmin is           */
 /* substitute to kmin                                                       */
 /*==========================================================================*/
-gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double kmax, int x_or_y, bool mod_kmin)
+gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double
+    kmax, int x_or_y, bool mod_kmin)
 {
   int i;   //loop integers
   int min=0, n=0;   //mimimun index and number of elements in the output vector
@@ -89,8 +106,10 @@ gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double kmax,
       if(indata[i].x > kmax) break; //otherwise vector check for the number of k<kmax
   }
   v = gsl_vector_alloc(n);   //allocate the vector gslvec with the right size of elements
-  if(x_or_y == 0) for(i=0; i<n; ++i) gsl_vector_set(v, i, indata[min+i].x);  //set the vector from indata.x
-  else for(i=0; i<n; ++i) gsl_vector_set(v, i, indata[min+i].y);  //set the vector from indata.y
+  if(x_or_y == 0) 
+    for(i=0; i<n; ++i) gsl_vector_set(v, i, indata[min+i].x);  //set the vector from indata.x
+  else 
+    for(i=0; i<n; ++i) gsl_vector_set(v, i, indata[min+i].y);  //set the vector from indata.y
 
   if(mod_kmin == true) *kmin = min;   //subsitute kmin with the number of bins with k<kmin if required
   return v;   //return the number of elements in the gsl_vector
@@ -101,7 +120,8 @@ gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double kmax,
 /* first mininv bins, cut such that it is diminv*diminv. Then invert it:    */
 /* if diag=true as diagonal; if diag=false using the LU decomposition       */
 /*==========================================================================*/
-gsl_matrix * invert(std::vector<in_data> &indata, int diminv, int mininv, bool diag)
+gsl_matrix * invert(std::vector<in_data> &indata, int diminv, int mininv, 
+    int n_mocks, bool diag)
 {
   int i, j;    // loop integers
   int dvec;   // size of the in_data vector
@@ -131,6 +151,24 @@ gsl_matrix * invert(std::vector<in_data> &indata, int diminv, int mininv, bool d
     gsl_permutation_free(p);
   }
   gsl_matrix_free(temp);
+
+  /* if n_mocks positive Unbias the inverse covariance as in Hartlap et al. 2007 *
+   * multiplying it my (n_mocks-n_bins-2)/(n_mock-1)                             */
+  if(n_mocks>0){
+    // if n-p-2<0 it's not possible to unbias the inverse
+    if(n_mocks < diminv+2){
+      std::cerr << "The covariance matrix is singular and should not be possible to invert it";
+      std::cerr << std::endl;
+      exit(13);
+    }
+    else{
+      if(gsl_matrix_scale(inv, (n_mocks-diminv-2.)/(n_mocks-1.)) !=0){
+        std::cerr << "Error multiplying the inverse covariance matrix to unbias it";
+        std::cerr << std::endl;
+        exit(14);
+      }
+    }
+  }
 
   return inv;
 }
@@ -262,7 +300,7 @@ double p_obj(double k, double *par, pmc *p22){
  *==========================================================================*/
 double rsd( double k, double *par, cosmology c){
   double rsd;   //value to return
-  if( c.f <= 0 ) rsd = 1;  //if no redshift space distortion wanted
+  if(c.f <= 0) rsd = 1;  //if no redshift space distortion wanted
   else{  //if required
     double beta = c.f/par[4];
     double x = k * c.f * par[5]; 

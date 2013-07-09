@@ -13,6 +13,7 @@
 #include <limits>
 #include <iostream>
 #include <sys/stat.h>
+#include <sstream>
 #include <stdlib.h>
 #include <string>
 #include <vector>
@@ -107,8 +108,10 @@ void readini(std::string inifile, std::vector<std::string> sname,
 double * substitute_value( double *array, size_t n, size_t i, double val );
 
 /*==========================================================================*/
-gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double kmax, int x_or_y, bool mod_kmin);
-gsl_matrix * invert(std::vector<in_data> &indata, int diminv, int mininv, bool diag);
+gsl_vector * vec2gslvec(std::vector<in_data> &indata, double *kmin, double
+    kmax, int x_or_y, bool mod_kmin);
+gsl_matrix * invert(std::vector<in_data> &indata, int diminv, int mininv, 
+    int n_mocks, bool diag);
 
 double likelihood(double *par, pmc *p22);
 double p_obj(double k, double *par, pmc *p22);

@@ -87,6 +87,13 @@ int main(int argc, char* argv[])
     TCLAP::ValueArg<double> f("f", "log_der_D", std::string("f=dln(D(a))/dln(a). If f>0 model of redshift space distortions ")+
 	std::string("used; otherwise not used."), false, -1., "double", cmd);
 
+    // Unbias the inverse covariance
+    //Hartlap et al. 2007: "the inverse of the maximum-likelihood
+    //estimator of the covariance is biased".
+    TCLAP::ValueArg<int> unbias("u", "unbias-cov", 
+	"Number of realisations used to estimate the covariance matrix. If positive unbias the inverse covariace matrix as in Hartlap et al. 2007.",
+        false, -1, "int", cmd);
+
 #ifdef WINMAT    
     //max and min value of kj where to evaluate the model before convolving with W_ij
     TCLAP::ValueArg<double> ckjmax("", "kjmax", std::string( "Maximum value of the wavenumber in h/Mpc ")+ 
@@ -200,7 +207,8 @@ int main(int argc, char* argv[])
     temp.clear();   //clear temp for the covariance matrix 
     /* covariance matrix */
     dkj = input_data(covfn.getValue(), temp, 2);   //read the input covariance matrix
-    invcov = invert(temp, data->size, int(kimin), false);     //tranform the vector to a gsl matrix and invert it
+    // tranform the vector to a gsl matrix and invert it
+    invcov = invert(temp, data->size, int(kimin), unbias.getValue(), false);
     temp.clear();   //clear temp for the kj
 #ifdef WINMAT    
     /* kj */
