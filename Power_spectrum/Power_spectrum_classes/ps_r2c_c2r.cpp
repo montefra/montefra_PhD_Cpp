@@ -172,95 +172,17 @@ void ps_r2c_c2r_mpi_inplace::correct_modes(){
 }
 
 /*==========================================================================
- * compute the sum of |delta(k)|^2 in spherical shells within the required 
- * bins, set by 'set_psk', and count the corresponding number of modes
- *==========================================================================*/
-void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(){
-  ptrdiff_t kind;   //index of |k| in the power spectrum array
-  double modk, temp_modk, d2;   //|k| of the cell and temporary value, |delta(k)|^2 (corrected if requested)
-  ptrdiff_t i, j, l;  //loop integers
-
-  for(i=local_nx-1; i>=0; --i){       //loop over the cells in the x direction
-    for(j=ycells-1; j>=0; --j){       //loop over the cells in the y direction
-      for(l=zcellso2_1-1; l>=0; --l){ //loop over the cells in the z direction
-        modk = sqrt( kcells[i+local_x_start]*kcells[i+local_x_start] +
-	    kcells[j]*kcells[j] + kcells[l]*kcells[l]);   //|k| of the cell
-	if( psnbins>0) temp_modk = modk - pskmin;   //subtract the minimum value of k for the output power spectrum
-	else temp_modk = log10(modk/pskmin);  //do the same but in log space
-	kind = floor(temp_modk/psdeltak);   //convert the |k| in power spectrum bin units 
-
-	if( kind<0 || kind>=abs(psnbins) ) continue;   //if the value of k is smaller or larger than the range, go to the next loop
-
-	double deltak_re = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) ];   //real part of delta(k)
-	double deltak_im = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //imaginary part of delta(k)
-	d2 = deltak_re*deltak_re + deltak_im*deltak_im;    //|delta(k)|^2
-	d2 /= corr->corr( kcells[i+local_x_start], kcells[j], kcells[l] );   //correct for the maf
-
-	psPK[kind] += 2.*d2;
-	psn_modes[kind] += 2;
-      }
-    }
-  }
-  //if the mode with k=0 is included in the computation, take it out of the sum
-  //must be counted only once, while all the others count two for simmetry of
-  //the real to complex transform
-  if( i == 0 && modk == 0 ){
-    psPK[kind] -= d2;
-    psn_modes[kind] -= 1;
-  }
-}
-
-/*==========================================================================
- * compute the sum of |delta(k)|^2 in spherical shells within the required 
- * bins, set by 'set_psk', and count the corresponding number of modes
- * this version normalise and substract the shot noise from every mode before
- * correcting
- *==========================================================================*/
-void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double normalisation, double noise ){
-  ptrdiff_t kind;   //index of |k| in the power spectrum array
-  double modk, temp_modk, d2;   //|k| of the cell and temporary value, |delta(k)|^2 (corrected if requested)
-  ptrdiff_t i, j, l;  //loop integers
-
-  for(i=local_nx-1; i>=0; --i){       //loop over the cells in the x direction
-    for(j=ycells-1; j>=0; --j){       //loop over the cells in the y direction
-      for(l=zcellso2_1-1; l>=0; --l){ //loop over the cells in the z direction
-        modk = sqrt( kcells[i+local_x_start]*kcells[i+local_x_start] +
-	    kcells[j]*kcells[j] + kcells[l]*kcells[l]);   //|k| of the cell
-	if( psnbins>0) temp_modk = modk - pskmin;   //subtract the minimum value of k for the output power spectrum
-	else temp_modk = log10(modk/pskmin);  //do the same but in log space
-	kind = floor(temp_modk/psdeltak);   //convert the |k| in power spectrum bin units 
-
-	if( kind<0 || kind>=abs(psnbins) ) continue;   //if the value of k is smaller or larger than the range, go to the next loop
-
-	double deltak_re = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) ];   //real part of delta(k)
-	double deltak_im = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //imaginary part of delta(k)
-	d2 = deltak_re*deltak_re + deltak_im*deltak_im;    //|delta(k)|^2
-        d2 = normalisation*d2 - noise;   //normalise the amplitude and subtract the shot noise
-	d2 /= corr->corr( kcells[i+local_x_start], kcells[j], kcells[l] );   //correct for the maf
-
-	psPK[kind] += 2.*d2;
-	psn_modes[kind] += 2;
-      }
-    }
-  }
-  //if the mode with k=0 is included in the computation, take it out of the sum
-  //must be counted only once, while all the others count two for simmetry of i
-  //the real to complex transform
-  if(i == 0 && modk == 0 ){
-    psPK[kind] -= d2;
-    psn_modes[kind] -= 1;
-  }
-}
-
-/*==========================================================================
  * compute the sum of re[delta1(k)*delta2(k)] in spherical shells within 
  * the required bins, set by 'set_psk', and count the corresponding 
  * number of modes
  * Parameters
  * ----------
- * second grid used to compute the cross power spectrum
+ *  other_grid: grid object containing delta2
+ *  normalisation: multiplicative normalisation for |delta(k)^2| (not noise)
+ *  noise: shot noise amplitude to subtract from normalisation*|delta(k)^2|
  *==========================================================================*/
-void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double *rgrid2){
+void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(const ps_r2c_c2r_mpi_inplace &other_grid, 
+    double normalisation, double noise){
   ptrdiff_t kind;   //index of |k| in the power spectrum array
   double modk, temp_modk, d2;   //|k| of the cell and temporary value, |delta(k)|^2 (corrected if requested)
   ptrdiff_t i, j, l;  //loop integers
@@ -276,13 +198,15 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double *rgrid2){
 
 	if( kind<0 || kind>=abs(psnbins) ) continue;   //if the value of k is smaller or larger than the range, go to the next loop
 
-	double deltak_re1 = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) ];   //grid1: real part of delta(k) 
-	double deltak_re2 = rgrid2[ 2*(l + zcellso2_1 * (j + ycells*i)) ];   //grid2: real part of delta(k)
-	double deltak_im1 = rgrid[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //grid1: imaginary part of delta(k)
-	double deltak_im2 = rgrid2[ 2*(l + zcellso2_1 * (j + ycells*i)) + 1 ];    //grid2: imaginary part of delta(k)
+	double deltak_re1 = this->rgrid[2*(l + zcellso2_1 * (j + ycells*i))];   //grid1: real part of delta(k) 
+	double deltak_re2 = other_grid.rgrid[2*(l + zcellso2_1 * (j + ycells*i))];   //grid2: real part of delta(k)
+	double deltak_im1 = this->rgrid[2*(l + zcellso2_1 * (j + ycells*i)) + 1];    //grid1: imaginary part of delta(k)
+	double deltak_im2 = other_grid.rgrid[2*(l + zcellso2_1 * (j + ycells*i)) + 1];    //grid2: imaginary part of delta(k)
 	d2 = deltak_re1*deltak_re2 + deltak_im1*deltak_im2;    //|delta(k)|^2
+        d2 = normalisation*d2 - noise;   //normalise the amplitude and subtract the shot noise
 	d2 /= corr->corr(kcells[i+local_x_start], kcells[j], kcells[l]);   //correct for the maf
-	psPK[kind] += 2*d2;
+
+	psPK[kind] += 2.*d2;
 	psn_modes[kind] += 2;
       }
     }
@@ -290,7 +214,7 @@ void ps_r2c_c2r_mpi_inplace::sum_modes2_sph(double *rgrid2){
   //if the mode with k=0 is included in the computation, take it out of the sum
   //must be counted only once, while all the others count two for simmetry of
   //the real to complex transform
-  if( i == 0 && modk == 0 ){
+  if(i == 0 && modk == 0){
     psPK[kind] -= d2;
     psn_modes[kind] -= 1;
   }

@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
     cmd.add(infiles);   //input file names. Add to the command line
     cmd.add(winonly);   //the input files are for the window function only
     cmd.add(cross);   //cross power spectrum
+    cmd.add(twogrids); //use two grids to compute the density field
     cmd.add(verbose);  //verbose mode
     cmd.add(pw);   //pw for the FKP weight
     cmd.add(kmax);   //maximum k
@@ -63,16 +64,16 @@ int main(int argc, char* argv[])
     size_t ninfiles = vinfiles.size();   //number of input files
 
     // Check the number of the input files
-    check_input_files(vinfiles, winonly.getValue(), cross.getValue(), myrank,
-        root, com);
+    check_input_files(vinfiles, winonly.getValue(), cross.getValue(),
+        twogrids.getValue(), myrank, root, com);
 
     for(size_t i=0; i< ninfiles; ++i)  //check the input files
       if(fileexists(vinfiles[i]) == false)
-        on_error("Input file "+vinfiles[i]+" does not exists", 5 myrank, root,
-            MPI_Comm);
+        on_error(std::string("Input file '")+vinfiles[i]+std::string("' does not exists"),
+            5, myrank, root, com);
     if(fileexists(outfile.getValue()) == true) //check the output file
-        on_error("Output file "+outfile.getValue()+
-            " does already exists. Change or rename it", 6 myrank, root, MPI_Comm);
+        on_error("Output file '"+outfile.getValue()+
+            "' already exists. Change or rename it", 6, myrank, root, com);
 
     /*==========================================================================*/
     /* check the redshift range                                                 */
@@ -82,7 +83,7 @@ int main(int argc, char* argv[])
       size_t nzrange = zrange.getValue().size(); //get the number of given values
       if(nzrange<2)
         on_error("Two values required by '--zrange' option", 7, myrank, root,
-            MPI_Comm);
+            com);
       else if(nzrange>2){
         if(myrank == root)
           std::cerr << "Skipping values after the second in option '--zrange'"
@@ -92,7 +93,7 @@ int main(int argc, char* argv[])
       else vzrange = zrange.getValue();
       if(vzrange[1]<=0)
         on_error("A negative upper value for the redshift range does not make sense", 
-            7, myrank, root, MPI_Comm);
+            7, myrank, root, com);
     }
     /*==========================================================================*/
     /* check ignorew                                                            */
@@ -107,6 +108,7 @@ int main(int argc, char* argv[])
           vignorew.push_back(i);
     }
     else vignorew.push_back(-1);
+    std::vector<int> vignore_randoms(1, -1); //randoms don't have weights to ignore
 
     /*==========================================================================*/
     /* initialise the class for the FFT and read and/or write the wisdom        */
@@ -124,10 +126,10 @@ int main(int argc, char* argv[])
     // the one grid is used in any case
     grid1 = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
         &local_0_start); 
-    if(ninfiles == 2)
+    if(winonly.getValue()==false)
       gridran = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
           &local_0_start); 
-    if(ninfiles == 4)
+    if(twogrids.getValue() || cross.getValue())
       grid2 = new ps_r2c_c2r_mpi_inplace(ncells.getValue(), com, &local_n0,
           &local_0_start); 
 
@@ -142,10 +144,10 @@ int main(int argc, char* argv[])
     }
 
     //create the real to complex plan
-      grid1->create_plan(FFTW_FORWARD);
-    if(ninfiles == 2) 
+    grid1->create_plan(FFTW_FORWARD);
+    if(winonly.getValue()==false)
       gridran->create_plan(FFTW_FORWARD);    
-    if(ninfiles == 4)
+    if(twogrids.getValue() || cross.getValue())
       grid2->create_plan(FFTW_FORWARD);
     if(verbose.getValue() && myrank == root)
       std::cout << "Plan created" << std::endl;
@@ -158,9 +160,9 @@ int main(int argc, char* argv[])
     }
     //set to 0 all the elements of the grid
     grid1->initialise();
-    if(ninfiles == 2)
+    if(winonly.getValue()==false)
       gridran->initialise();
-    if(ninfiles == 4)
+    if(twogrids.getValue() || cross.getValue())
       grid2->initialise();
     
     /*==========================================================================*/
@@ -170,12 +172,14 @@ int main(int argc, char* argv[])
     //set the mas
     double cell_size = grid1->set_k( bmax.getValue() - bmin.getValue() );
     grid1->set_MAS(mas.getValue());
-    if(ninfiles ==2)
+    if(winonly.getValue()==false){
       cell_size = gridran->set_k( bmax.getValue() - bmin.getValue() );
       gridran->set_MAS(mas.getValue());
-    if(ninfiles == 4)
+    }
+    if(twogrids.getValue() || cross.getValue()){
       cell_size = grid2->set_k( bmax.getValue() - bmin.getValue() );
       grid2->set_MAS(mas.getValue());
+    }
     
     /*==========================================================================*/
     /* read the input files, compute normalisation and shot noise and create    */
@@ -197,7 +201,7 @@ int main(int argc, char* argv[])
     
     // values of alpha=sum(w_cat)/sum(w_ran) or 1 for window functions
     double alpha1=1., alpha2=1.;
-    //inverse normalisation square and shot noise for the two samples
+    //normalisation square and shot noise for the two samples
     double N2_1, noise1, N2_2, noise2; 
 
     //initilise the class that reads the file(s)
@@ -205,45 +209,81 @@ int main(int argc, char* argv[])
 
     //window function only
     if(winonly.getValue() == true){
-      on_error("Check implementation of window function with two files and cross", 
-          99, myrank, root, MPI_Comm);
-      for(size_t i=0; i<ninfiles; ++i){
-        sumstemp = rf.read_file(vinfiles[i], *grid1, vzrange, vignorew, false);
-        for(size_t j=0; j<dimsums; ++j) sumscat1[j] += sumstemp[j];
+      //read anyway the first file
+      sumscat1 = rf.read_file(vinfiles[0], *grid1, vzrange, vignore_randoms, false);
+      if(ninfiles == 2){  //read the second
+        if(twogrids.getValue() || cross.getValue())  //if two grids are wanted 
+          sumscat2 = rf.read_file(vinfiles[1], *grid2, vzrange, vignore_randoms, false);
+        else{  //just add the second file on the same grid and then add the weights
+          sumscat2 = rf.read_file(vinfiles[1], *grid1, vzrange, vignore_randoms, false);
+          for(size_t i=0; i<dimsums; ++i) sumscat1[i] += sumscat2[i];
+        }
       }
+      //compute alpha,  normalisation and shot noise (this is done anyway)
       alpha_N_sh(sumscat1, &alpha1, &N2_1, &noise1);
+      *grid1 /= sqrt(N2_1);  //multiply by the normalisation
+      if(twogrids.getValue() || cross.getValue()){  //if two grids are wanted 
+      // cross window function or from two catalogues
+        alpha_N_sh(sumscat2, &alpha2, &N2_2, &noise2);
+        *grid2 /= sqrt(N2_2);  //multiply by the normalisation
+      }
     }
     else{
-      // read the (first) catalogue and random
+      // read anyway the first catalogue and random
       sumscat1 = rf.read_file(vinfiles[0], *grid1, vzrange,
-          ignorew.getValue(), repeatw.getValue());
+          vignorew, repeatw.getValue());
       sumsran1 = rf.read_file(vinfiles[1], *gridran, vzrange,
-          -1, false);
-      alpha_N_sh(sumscat1, sumsran1, &alpha1, &N2_1, &noise1);
-      //convert the galaxy and random density fields into F(r)
-      grid1->to_Fr(gridran->rgrid, alpha1, sqrt(N2_1));
-      // if the cross power spectrum or the power spectrum from two catalogues
-      // desired
-      if(ninfiles == 4){
-        // read the (first) catalogue and random
-        sumscat2 = rf.read_file(vinfiles[2], *grid2, vzrange,
-            ignorew.getValue(), repeatw.getValue());
-        gridran->initialise();  //reset to 0 the random grid
-        sumsran2 = rf.read_file(vinfiles[3], *gridran, vzrange,
-            -1, false);
-        alpha_N_sh(sumscat2, sumsran2 &alpha2, &N2_2, &noise2);
-        //convert the galaxy and random density fields into F(r)
-        grid2->to_Fr(gridran->rgrid, alpha2, sqrt(N2_2));
-        // if the cross power spectrum is not desired sum the two grids
-        if(cross.getValue() == false){
-          grid1 += grid2;
-          grid2->free_grid(); // grid 2 not needed anymore
+          vignore_randoms, false);
+      if(ninfiles == 4){  //read the second catalogue and random
+        if(twogrids.getValue() || cross.getValue()){  //if two grids are wanted 
+          //compute alpha, inverse normalisation and shot noise
+          alpha_N_sh(sumscat1, sumsran1, &alpha1, &N2_1, &noise1);
+          //convert the galaxy and random density fields into F(r)
+          grid1->to_Fr(*gridran, alpha1, sqrt(N2_1));
+          // cross power spectrum or power spectrum on two grids
+          gridran->initialise();  //reset to 0 the random grid
+          // read the second catalogue and random
+          sumscat2 = rf.read_file(vinfiles[2], *grid2, vzrange,
+              vignorew, repeatw.getValue());
+          sumsran2 = rf.read_file(vinfiles[3], *gridran, vzrange,
+              vignore_randoms, false);
+          alpha_N_sh(sumscat2, sumsran2, &alpha2, &N2_2, &noise2);
+          //convert the galaxy and random density fields into F(r)
+          grid2->to_Fr(*gridran, alpha2, sqrt(N2_2));
+        }
+        else{  //just add the second file and random on the same grids and then add the weights
+          sumscat2 = rf.read_file(vinfiles[2], *grid1, vzrange,
+              vignorew, repeatw.getValue());
+          sumsran2 = rf.read_file(vinfiles[3], *gridran, vzrange,
+              vignore_randoms, false);
+          for(size_t i=0; i<dimsums; ++i){
+            sumscat1[i] += sumscat2[i];
+            sumsran1[i] += sumsran2[i];
+          }
+          //compute alpha inverse normalisation and shot noise (this is done anyway)
+          alpha_N_sh(sumscat1, sumsran1, &alpha1, &N2_1, &noise1);
+          //convert the galaxy and random density fields into F(r)
+          grid1->to_Fr(*gridran, alpha1, sqrt(N2_1));
         }
       }
       // random grid not used anymore
       gridran->free_grid();
     }
-    delete [] sumstemp; //not used anymore
+    
+    // if two (four) files are provided to compute the window function (power
+    // spectrum) but no cross wf (ps) required, sum the first and second grid
+    if(cross.getValue() == true || twogrids.getValue() == true){
+      double N_tot = N2_1+N2_2;  //square normalisation for the full sample
+      noise1 *= N2_1/N_tot;  //rescale also the shot noise
+      noise2 *= N2_2/N_tot;
+      N_tot = sqrt(N_tot);   //normalisation for the full sample
+      *grid1 *= sqrt(N2_1)/N_tot;  //rescale the two grids to match the full sample amplitude
+      *grid2 *= sqrt(N2_2)/N_tot;
+      if(twogrids.getValue()){
+        *grid1 += *grid2;  //sum the two grids if you don't want the cross 
+        grid2->free_grid(); // grid 2 not needed anymore
+      }
+    }
 
     if(verbose.getValue() && myrank == root){
       std::cout << "Catalogue(s) read and grid(s) filled. ";
@@ -259,9 +299,9 @@ int main(int argc, char* argv[])
     if(epsilon.isSet() == true){
       if(epsilon.getValue() < 0) grid1->ln1delta();
       else grid1->ln1delta(epsilon.getValue());
-      if(ninfiles == 4 && cross.getValue()){
-        if(epsilon.getValue() < 0) grid1->ln1delta();
-        else grid1->ln1delta(epsilon.getValue());
+      if(cross.getValue()){
+        if(epsilon.getValue() < 0) grid2->ln1delta();
+        else grid2->ln1delta(epsilon.getValue());
       }
     }
 
@@ -270,9 +310,8 @@ int main(int argc, char* argv[])
     /*==========================================================================*/
 
     grid1->execute_plan();
-    if(cross.getValue() == true){ // cross power spectrum
+    if(cross.getValue() == true) // cross power spectrum
       grid2->execute_plan();
-    }
     if(verbose.getValue() && myrank == root)
       std::cout << "FFT done" << std::endl;
 
@@ -291,8 +330,7 @@ int main(int argc, char* argv[])
     /* set in 'set_pks'                                                         */
     /*==========================================================================*/
     if(cross.getValue() == true){ // cross power spectrum
-      std::cerr << "NOT IMPLEMENTED" << std::endl;
-      grid1->sum_modes2_sph(grid2->rgrid);   //cross power spectrum
+      grid1->sum_modes2_sph(*grid2);   //cross power spectrum
       grid2->free_grid();  //cleanup the grid not used anymore
     }
     else grid1->sum_modes2_sph();   //auto power spectrum
@@ -303,27 +341,21 @@ int main(int argc, char* argv[])
     if(verbose.getValue() && myrank == root)
       std::cout << "Saving the power spectrum to file: " << outfile.getValue() << std::endl;
     // create the header to the output file
-    std::string header;
-    header = "# \t sum(w) \t sum(w^2n(z)) \t sum(w^2)\n";
-    header += "#data";
-    for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
-    header += "\n";
-    if(crosspk.getValue() == true){
-      std::cerr << "NOT IMPLEMENTED" << std::endl;
-      header += "#data2";
-      for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumscat1[i], 4);
-      header += "\n";
-    }
-    header += "#random";
-    for(size_t i=0; i<dimsums; ++i) header += "\t"+to_string(sumsran[i], 4);
+    std::string header = create_header(sumscat1, sumscat2, sumsran1, sumsran2,
+        dimsums, twogrids.getValue(), cross.getValue(), winonly.getValue());
 
-    grid1->savePK(outfile.getValue(), N2, noise, header, myrank, root, com);
-    //the shot noise and normalisation already applied
-    //grid1->savePK(outfile.getValue(), 1., noise, myrank, root, com);
+    double noise;  //shot noise to substract from the spherical averaged power spectrum
+    if(cross.getValue()==true) noise=0.;  //no shot noise in the cross power spectrum
+    else if(twogrids.getValue() == true)
+      noise=noise1+noise2;  //if catalogues normalised and then summed, shot noise is sum of individual shot noises
+    else noise=noise1;
+
+    grid1->savePK(outfile.getValue(), 1, noise, header, myrank, root, com);
 
     delete [] sumscat1; //not used anymore
     delete [] sumscat2; //not used anymore
-    delete [] sumsran; //not used anymore
+    delete [] sumsran1; //not used anymore
+    delete [] sumsran2; //not used anymore
   } 
   catch (TCLAP::ArgException &e){  // catch any exceptions
     if(myrank == root) 

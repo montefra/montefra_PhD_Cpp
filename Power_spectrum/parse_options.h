@@ -38,8 +38,8 @@ TCLAP::UnlabeledMultiArg<std::string> infiles("infiles",
     std::string("1) if 2 or 4: couples of catalogue/random files: ")+
     std::string("                          ")+
     std::string("2) if 'winonly' given: all files are randoms ")+
-    std::string("are loaded in the same grid a one window function is computed;                          ")+
-    std::string("3) if 4 infiles and 'crosspk' given: two catalogue/random couples ")+
+    std::string("one window function is computed; the cross window function is computed if 'cross' given;                          ")+
+    std::string("3) if 4 infiles and 'cross' given: two catalogue/random couples ")+
     std::string("used to computed the cross power spectrum.                                      ")+
     std::string("In cases 1 and 3 the files must ordered as be 'cat1 ran1 [cat2 ran2 ...]'"),
     true, "infiles (string)");
@@ -48,6 +48,9 @@ TCLAP::SwitchArg winonly("w", "winonly", "The input file must be used to compute
 
 TCLAP::SwitchArg cross("", "cross", 
     "Compute the cross power spectrum (window function) using the 4 (2) files given");
+
+TCLAP::SwitchArg twogrids("", "two-grids", 
+    "If given, compute the density field from the input 4 (2) files on two grids before summing them.");
 
 //verbose mode
 TCLAP::SwitchArg verbose("v", "verbose", "Verbose mode");

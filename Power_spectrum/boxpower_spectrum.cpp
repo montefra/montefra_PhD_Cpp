@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
     /* set in 'set_pks'                                                         */
     /*==========================================================================*/
     if(n_mlim != 4 ) grid1.sum_modes2_sph();   //autopower spectrum
-    else grid1.sum_modes2_sph(grid2.rgrid);   //cross power spectrum
+    else grid1.sum_modes2_sph(grid2);   //cross power spectrum
 
     /*==========================================================================*/
     /* compute normalisation and shot noise                                     */

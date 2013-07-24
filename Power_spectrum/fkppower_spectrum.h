@@ -35,14 +35,8 @@ std::string get_version();
  *  root: root processor
  *  com: MPI communicator
  *=======================================================================*/
-void on_error(std:string message, int error_code, int myrank, int, root, MPI_Comm
-    com){
-  if(myrank == root)
-    std::cerr << message << std::endl;
-  MPI_Barrier(com);
-  MPI_Finalize();
-  exit(error_code);
-}
+void on_error(std::string message, int error_code, int myrank, int root,
+    MPI_Comm com);
 
 /*=======================================================================*/
 /* check input files                                                     */
@@ -59,7 +53,7 @@ void on_error(std:string message, int error_code, int myrank, int, root, MPI_Com
  * com: MPI communicator
  *==========================================================================*/
 void check_input_files(std::vector<std::string> &files, bool winonly, bool
-    cross, int myrank, int root, MPI_Comm com);
+    cross, bool two_grids, int myrank, int root, MPI_Comm com);
 
 /*==========================================================================
  * compute alpha, square of the inverse normalisation and 
@@ -71,14 +65,18 @@ void check_input_files(std::vector<std::string> &files, bool winonly, bool
  * ----------
  *  sums: array containing sum(w), sum(n*w^2), sum(w^2)
  *  alpha: in this case 1 (for complementarity with the power spectrum case)
- *  N2: square of the inverse normalisation
+ *  N2: square of the normalisation
  *  noise: shot noise amplitude
  *==========================================================================*/
+#ifdef MAIN_CPP
 void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise){
   *alpha=1.;  //alpha is one in this case
-  *N2 = 1./sums[1];
-  *noise = sums[2]*N2;
+  *N2 = sums[1];
+  *noise = sums[2]/ *N2;
 }
+#else
+void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise);
+#endif
 /*==========================================================================
  * for the power spectrum
  * Parameters
@@ -86,15 +84,38 @@ void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise){
  *  sumsdat: array containing sum(w), sum(n*w^2), sum(w^2) from the data
  *  sumsran: array containing sum(w), sum(n*w^2), sum(w^2) from the random
  *  alpha: in this case 1 (for complementarity with the power spectrum case)
- *  N2: square of the inverse normalisation
+ *  N2: square of the normalisation
  *  noise: shot noise amplitude
  *==========================================================================*/
+#ifdef MAIN_CPP
 void alpha_N_sh(double *sumsdat, double *sumsran, double *alpha, double *N2,
     double *noise){
-  *alpha = sumscat[0]/sumsran[0];
-  *N2 = 1./(*alpha*sumsran[1]);
-  *noise = (*alpha+1.) * *alpha*sumsran[2] * *N2;
+  *alpha = sumsdat[0]/sumsran[0];
+  *N2 = *alpha*sumsran[1];
+  *noise = (*alpha+1.) * *alpha*sumsran[2] / *N2;
 }
+#else
+void alpha_N_sh(double *sumsdat, double *sumsran, double *alpha, double *N2,
+    double *noise);
+#endif
+
+/*==========================================================================
+ * Create the header for the output file
+ * Parameters
+ * ----------
+ *  sumscat1: sums of the first catalogue
+ *  sumscat2: sums of the second catalogue
+ *  sumsran1: sums of the first random
+ *  sumsran2: sums of the second random
+ *  dimsums: number of elements in the above arrays
+ *  nfiles: number of input files
+ *  winonly: window function or power spectrum
+ * output
+ * ------
+ *  header: string with the full header
+ *==========================================================================*/
+std::string create_header(double *sumscat1, double *sumscat2, double *sumsran1,
+    double *sumsran2, int dimsums, bool two_grids, bool cross, bool winonly);
 
 /*==========================================================================
  * class created to read all the files. Provides a simple interface,
