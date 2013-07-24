@@ -10,8 +10,8 @@ MCMC/mcmc_w
 Power_spectrum/boxpower_spectrum*
 Power_spectrum/fkppower_spectrum*
 Theories/p22
-../Theories/power_lin_EH
-../WindowMatrix/windowmat
+Theories/power_lin_EH
+WindowMatrix/windowmat
 #test directories
 Tests
 Test
