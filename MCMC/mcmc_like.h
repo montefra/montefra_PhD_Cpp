@@ -3,28 +3,26 @@
  *                                                                          
  * Author: Francesco Montesano, MPE, Garching                               
  *                                                                          
- * Purpose: Markov Chain Monte Carlo
+ * Purpose: file computing the log likelihood (or chi^2)
  *==========================================================================*/
 
-#include<iostream>
-#include<string>
-#include<vector>
+#include <string>
 
 #include "parse_ini.h"
-#include "mcmc_like.h"
 
 /*==========================================================================
- * Convert 'value' to string. Templatized, so accept all standard types     
- * Parameters
- * ----------
- *  value: value to convert to string
- * output
- * ------
- *  str: string 
+ * Likelihood base class. The methods defined in here must be defined in
+ * all derived classes
  *==========================================================================*/
-template <typename T>  //set template name
-string to_string(T const& value) {
-    stringstream sstr;
-    sstr << value;
-    return sstr.str();
-}
+class MCMC_like_base{
+
+};
+
+
+class Like_pk: public MCMC_like_base{
+  private:
+
+  public:
+
+
+};
