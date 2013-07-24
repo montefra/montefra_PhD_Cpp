@@ -65,6 +65,56 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
     /* class destructor                                                         */
     ~ps_r2c_c2r_mpi_inplace();  //destructor
 
+
+    /*==========================================================================
+     * Operators
+     *==========================================================================*/
+    /*==========================================================================
+     * Compound assignment
+     *==========================================================================*/
+    /*==========================================================================
+     * add LHS into RHS
+     * Parameters
+     * ----------
+     *  rhs: ps_r2c_c2r_mpi_inplace instance to be added
+     * output
+     * ------
+     *  ps_r2c_c2r_mpi_inplace with the object and the added grid
+     *==========================================================================*/
+    ps_r2c_c2r_mpi_inplace & operator+=(const ps_r2c_c2r_mpi_inplace &rhs){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        this->rgrid[i] += rhs.rgrid[i];
+      return *this;
+    }
+    /*==========================================================================
+     * multiply RHS by constant
+     * Parameters
+     * ----------
+     *  rhs: ps_r2c_c2r_mpi_inplace instance to be added
+     * output
+     * ------
+     *  ps_r2c_c2r_mpi_inplace with the object and the added grid
+     *==========================================================================*/
+    ps_r2c_c2r_mpi_inplace & operator*=(const double rhs){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        this->rgrid[i] *= rhs;
+      return *this;
+    }
+    /*==========================================================================
+     * divide RHS by constant
+     * Parameters
+     * ----------
+     *  rhs: ps_r2c_c2r_mpi_inplace instance to be added
+     * output
+     * ------
+     *  ps_r2c_c2r_mpi_inplace with the object and the added grid
+     *==========================================================================*/
+    ps_r2c_c2r_mpi_inplace & operator/=(const double rhs){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        this->rgrid[i] /= rhs;
+      return *this;
+    }
+
     /*==========================================================================
      * free the fftw grid
      *==========================================================================*/
@@ -166,26 +216,22 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
      *   random points
      * alpha: sum(w_g)/sum(w_r)
      *==========================================================================*/
-    void to_Fr(double *rangrid, double alpha){
-      for(ptrdiff_t i=0; i<2*alloc_local; ++i) rgrid[i] -= alpha * rangrid[i];
+    void to_Fr(const ps_r2c_c2r_mpi_inplace &rangrid, double alpha){
+      to_Fr(rangrid, alpha, 1.);
     }
 
     /*==========================================================================
-     * compute the F(r) density field from the as rgrid - alpha*randomgrid
+     * compute the F(r) density field from the as (rgrid - alpha*randomgrid)*N
      * Parameters
      * ----------
      * rangrid: FFTW grid of double with the same size of rgrid containin the 
      *   random points
      * alpha: sum(w_g)/sum(w_r)
-     * N: normalisation of F(r) = N * (n_g - alpha*n_r)
+     * N: multiplicative mormalisation 1/sqrt(sum(n(z)*w^2))
      *==========================================================================*/
-    void to_Fr(double *rangrid, double alpha, double N){
-      double min = 0.;
-      for(ptrdiff_t i=0; i<2*alloc_local; ++i){
-        rgrid[i] = (rgrid[i] - alpha * rangrid[i])*N;
-        min = rgrid[i]<min ? rgrid[i] : min;
-      }
-      std::cout << "minimum: " << min << std::endl;
+    void to_Fr(const ps_r2c_c2r_mpi_inplace &rangrid, double alpha, double N){
+      for(ptrdiff_t i=0; i<2*alloc_local; ++i)
+        this->rgrid[i] = (this->rgrid[i] - alpha * rangrid.rgrid[i])/N;
     }
 
     /*==========================================================================
@@ -236,7 +282,7 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
     }
 
     /*==========================================================================
-     * Subtract from each cell the mean of all the cells
+      - alpha * rangrid[i])*N;* Subtract from each cell the mean of all the cells
      * Parameters
      * ----------
      * root: processor number where to collect the total sum 
@@ -263,31 +309,49 @@ class ps_r2c_c2r_mpi_inplace: public ps_r2c_c2r
     }
 
     /*==========================================================================
-     * Correct for the MAS aliases (the correction desired is set in
-     * 'ps_base::set_MAS_correction(int cor)' ) and compute the sum of 
-     * |delta(k)|^2 in spherical shells within the required bins, set in 
-     * 'void ps_base::set_psk(double kmax, double kmin, ptrdiff_t nbins)'
-     * and count the corresponding number of modes
-     *==========================================================================*/
-    void sum_modes2_sph();
-    /*==========================================================================
      * compute the sum of |delta(k)|^2 in spherical shells within the required 
      * bins, set by 'set_psk', and count the corresponding number of modes
      * this version normalise and substract the shot noise from every mode before
      * correcting
-     *==========================================================================*/
-    void sum_modes2_sph(double normalisation, double noise );
-    /*==========================================================================
-     * Correct for the MAS aliases (the correction desired is set in
-     * 'ps_base::set_MAS_correction(int cor)' ) and compute the sum of 
-     * re[delta1(k)*delta2(k)] in spherical shells within the required bins, 
-     * set in 'void ps_base::set_psk(double kmax, double kmin, ptrdiff_t nbins)',
-     * and count the corresponding number of modes
      * Parameters
      * ----------
-     * rgrid2: second grid used to compute the cross power spectrum
+     *  normalisation: multiplicative normalisation for |delta(k)^2| (not noise)
+     *  noise: shot noise amplitude to subtract from normalisation*|delta(k)^2|
      *==========================================================================*/
-    void sum_modes2_sph(double *rgrid2);
+    void sum_modes2_sph(double normalisation, double noise){
+      sum_modes2_sph(*this, normalisation, noise);
+    }
+    /*==========================================================================
+     * compute the sum of |delta(k)|^2 in spherical shells within the required 
+     * bins, set by 'set_psk', and count the corresponding number of modes
+     * no normalisation or shot noise applied
+     *==========================================================================*/
+    void sum_modes2_sph(){
+      sum_modes2_sph(1., 0.);
+    }
+    /*==========================================================================
+     * compute the sum of re[delta1(k)*delta2(k)] in spherical shells within 
+     * the required bins, set by 'set_psk', and count the corresponding 
+     * number of modes
+     * Parameters
+     * ----------
+     *  other_grid: grid object containing delta2
+     *  normalisation: multiplicative normalisation for |delta(k)^2| (not noise)
+     *  noise: shot noise amplitude to subtract from normalisation*|delta(k)^2|
+     *==========================================================================*/
+    void sum_modes2_sph(const ps_r2c_c2r_mpi_inplace &other_grid, double
+        normalisation, double noise);
+    /*==========================================================================
+     * compute the sum of re[delta1(k)*delta2(k)] in spherical shells within 
+     * the required bins, set by 'set_psk', and count the corresponding 
+     * number of modes
+     * Parameters
+     * ----------
+     * other_grid: grid object containing delta2
+     *==========================================================================*/
+    void sum_modes2_sph(const ps_r2c_c2r_mpi_inplace &other_grid){
+      sum_modes2_sph(other_grid, 1., 0.);
+    }
 
     /*==========================================================================
      * save rgrid into a fits file. Each processor write a single file with a 

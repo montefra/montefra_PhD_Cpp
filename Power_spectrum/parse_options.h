@@ -35,18 +35,22 @@ TCLAP::UnlabeledValueArg<std::string> infile("infile", "Input catalogue name (as
 
 TCLAP::UnlabeledMultiArg<std::string> infiles("infiles", 
     std::string("Input catalogue names. Interpretation of the files:                 ")+
-    std::string("1) if number of infiles even: couples of catalogue/random files ")+
-    std::string("to load on the same grids and the power spectrum;                          ")+
-    std::string("2) if number of infiles odd or 'winonly' given: all files are randoms ")+
-    std::string("are loaded in the same grid a one window function is computed;                          ")+
-    std::string("3) if 4 infiles and 'crosspk' given: two catalogue/random couples ")+
+    std::string("1) if 2 or 4: couples of catalogue/random files: ")+
+    std::string("                          ")+
+    std::string("2) if 'winonly' given: all files are randoms ")+
+    std::string("one window function is computed; the cross window function is computed if 'cross' given;                          ")+
+    std::string("3) if 4 infiles and 'cross' given: two catalogue/random couples ")+
     std::string("used to computed the cross power spectrum.                                      ")+
     std::string("In cases 1 and 3 the files must ordered as be 'cat1 ran1 [cat2 ran2 ...]'"),
     true, "infiles (string)");
 
 TCLAP::SwitchArg winonly("w", "winonly", "The input file must be used to compute the window function");
 
-TCLAP::SwitchArg crosspk("", "crosspk", "Compute the cross power spectrum using the 4 files given");
+TCLAP::SwitchArg cross("", "cross", 
+    "Compute the cross power spectrum (window function) using the 4 (2) files given");
+
+TCLAP::SwitchArg twogrids("", "two-grids", 
+    "If given, compute the density field from the input 4 (2) files on two grids before summing them.");
 
 //verbose mode
 TCLAP::SwitchArg verbose("v", "verbose", "Verbose mode");
@@ -146,18 +150,19 @@ TCLAP::MultiArg<double> mlim("m", "mass-limits", std::string("If not used the po
     std::string("is computed."), false, "double" );
 
 //redshift range
-TCLAP::MultiArg<double> zrange("", "zrange", "redshift range", false, "[double, double]");
+TCLAP::MultiArg<double> zrange("", "zrange", "redshift range. Two values accepted", 
+    false, "double");
 //ignore either the 'w_fc+w_rf-1' or the systematic weights setting them to 1
-ichoise.push_back(-1); //
+//ichoise.push_back(-1); 
 ichoise.push_back(1);
 ichoise.push_back(2);
 TCLAP::ValuesConstraint<int> choiseignorew(ichoise);
 ichoise.clear();
-TCLAP::ValueArg<int> ignorew("", "ignorew", 
-    "Set to 1 'w_fc+w_rf-1' ('ignorew'=1) or 'w_sys' ('ignorew'=2) to 1.",
-    false, -1, &choiseignorew);
+TCLAP::MultiArg<int> ignorew("", "ignorew", 
+    "Set to 1 'w_fc+w_rf-1' ('ignorew'=1) and/or 'w_sys' ('ignorew'=2) to 1.",
+    false, /*-1,*/ &choiseignorew);
 //
-TCLAP::SwitchArg repeatw("", "repeat-w", 
+TCLAP::SwitchArg repeatw("", "repeatw", 
     "Instead of assigning a particle to the grid with w='w_fc+w_rf-1',\
     it assigns it w-times with w=1");
 

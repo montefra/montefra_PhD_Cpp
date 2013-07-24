@@ -7,6 +7,7 @@
 #ifndef FKPPOWER_SPECTRUM_H
 #define FKPPOWER_SPECTRUM_H
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -24,22 +25,97 @@
 std::string get_description();
 std::string get_version();
 
+/*=======================================================================
+ * Print error, finalise mpi and exit
+ * Parameters
+ * ----------
+ *  message: error message to print to std err
+ *  code: error code
+ *  myrank: rank of the processor
+ *  root: root processor
+ *  com: MPI communicator
+ *=======================================================================*/
+void on_error(std::string message, int error_code, int myrank, int root,
+    MPI_Comm com);
+
 /*=======================================================================*/
 /* check input files                                                     */
 /*=======================================================================*/
 /*==========================================================================
- * Do the checks when the cross power spectrum is required
- * if files.size > 4, files is resized to 4
+ * Check the number of files 
  * Parameters
  * ----------
  * files: vector of strings with the input files
+ * winonly: if the window function required
+ * cross: if the cross power spectrum or window function required
  * myrank: rank of the processor
  * root: root processor
  * com: MPI communicator
  *==========================================================================*/
-void check_crosspk(std::vector<std::string> &files, int myrank, int root,
-    MPI_Comm com);
+void check_input_files(std::vector<std::string> &files, bool winonly, bool
+    cross, bool two_grids, int myrank, int root, MPI_Comm com);
 
+/*==========================================================================
+ * compute alpha, square of the inverse normalisation and 
+ * shot noise amplitude given the sums over the weights
+ *==========================================================================*/
+/*==========================================================================
+ * for the window function
+ * Parameters
+ * ----------
+ *  sums: array containing sum(w), sum(n*w^2), sum(w^2)
+ *  alpha: in this case 1 (for complementarity with the power spectrum case)
+ *  N2: square of the normalisation
+ *  noise: shot noise amplitude
+ *==========================================================================*/
+#ifdef MAIN_CPP
+void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise){
+  *alpha=1.;  //alpha is one in this case
+  *N2 = sums[1];
+  *noise = sums[2]/ *N2;
+}
+#else
+void alpha_N_sh(double *sums, double *alpha, double *N2, double *noise);
+#endif
+/*==========================================================================
+ * for the power spectrum
+ * Parameters
+ * ----------
+ *  sumsdat: array containing sum(w), sum(n*w^2), sum(w^2) from the data
+ *  sumsran: array containing sum(w), sum(n*w^2), sum(w^2) from the random
+ *  alpha: in this case 1 (for complementarity with the power spectrum case)
+ *  N2: square of the normalisation
+ *  noise: shot noise amplitude
+ *==========================================================================*/
+#ifdef MAIN_CPP
+void alpha_N_sh(double *sumsdat, double *sumsran, double *alpha, double *N2,
+    double *noise){
+  *alpha = sumsdat[0]/sumsran[0];
+  *N2 = *alpha*sumsran[1];
+  *noise = (*alpha+1.) * *alpha*sumsran[2] / *N2;
+}
+#else
+void alpha_N_sh(double *sumsdat, double *sumsran, double *alpha, double *N2,
+    double *noise);
+#endif
+
+/*==========================================================================
+ * Create the header for the output file
+ * Parameters
+ * ----------
+ *  sumscat1: sums of the first catalogue
+ *  sumscat2: sums of the second catalogue
+ *  sumsran1: sums of the first random
+ *  sumsran2: sums of the second random
+ *  dimsums: number of elements in the above arrays
+ *  nfiles: number of input files
+ *  winonly: window function or power spectrum
+ * output
+ * ------
+ *  header: string with the full header
+ *==========================================================================*/
+std::string create_header(double *sumscat1, double *sumscat2, double *sumsran1,
+    double *sumsran2, int dimsums, bool two_grids, bool cross, bool winonly);
 
 /*==========================================================================
  * class created to read all the files. Provides a simple interface,
@@ -79,14 +155,14 @@ class readfiles{
      * grid: 'ps_r2c_c2r_mpi_inplace' object
      * zrange: array of two float: only objects within the redshift range considered
      * zrange: range of redshift
-     * ignorew: int (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
+     * ignorew: vector<int> (-1,1,2): if !=-1 set to 1 fl.w[1] or fl.w[2]
      * repeatw: bool: if true, assign object fl.w[1] times with fl.w[1]=1
      * output
      * ------
      * sums: array containing sum(w), sum(n*w^2), sum(w^2)
      *==========================================================================*/
     double *read_file(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
-        std::vector<double> zrange, int ignorew, bool repeatw);
+        std::vector<double> zrange, std::vector<int> ignorew, bool repeatw);
 
   private: 
 
@@ -112,20 +188,20 @@ class readfiles{
      * read in the file with the various options. 
      * For argument refer to the description of 'read_file'
      *==========================================================================*/
-    void read_asitis(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums);
-    void read_zrange(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums,
+    void read_asitis(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums);
+    void read_zrange(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
         std::vector<double> zrange);
-    void read_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums,
-        int ignorew);
-    void read_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid, double* sums);
-    void read_zrange_ignorew(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
-        double* sums, std::vector<double> zrange, int ignorew);
-    void read_zrange_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
+    void read_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums,
+        std::vector<int> ignorew);
+    void read_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid, double* sums);
+    void read_zrange_ignorew(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
+        double* sums, std::vector<double> zrange, std::vector<int> ignorew);
+    void read_zrange_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
         double* sums, std::vector<double> zrange);
-    void read_ignorew_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace &grid,
-        double* sums, int ignorew);
-    void read_zrange_ignorew_repeatw(std::string ifile, ps_r2c_c2r_mpi_inplace
-        &grid, double* sums, std::vector<double> zrange, int ignorew);
+    void read_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace &grid,
+        double* sums, std::vector<int> ignorew);
+    void read_zrange_ignorew_repeatw(std::ifstream &inif, ps_r2c_c2r_mpi_inplace
+        &grid, double* sums, std::vector<double> zrange, std::vector<int> ignorew);
 
     /*==========================================================================
      * read a line from the file, store position, weights, number density and
