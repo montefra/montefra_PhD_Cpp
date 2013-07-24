@@ -54,5 +54,25 @@ void Read_pk_files::read_pk(ParseIni ini){
   std::string pkfile;
   if(ini.get_param("pk_file", &pk_file);
 
+  double dummy, pk;
+  //number of skipped lines and lines saved into the gsl_vector
+  int skip_counter=0, saved_lines=0;
+
+  //allocate the gls vector that will contain the data
+  data = gsl_vector_alloc(n_bins.kiuse);   
+
+  std::ifstream in(pk_file.c_str());
+  std::string line;   //string containing the line
+  while(getline(in, line)){   //read a line of the input file
+    if(line.find("#") == 0)  //if in the line there is a '#' skip the line (it's likely a comment)
+      continue;
+    if(skip_counter++<n_bins.kimin) continue;  //skip first kimin bins
+    else if(saved_counter < n_bins.kiuse){  //save all the kiuse after kimin
+      std::stringstream(line) >> dummy >> pk >> dummy >> dummy;
+      gsl_vector_set(data, saved_counter++, pk);
+    }
+    else break;  //after reading all of them break out of the while loop
+  }
+  in.close();
 }
 

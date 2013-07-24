@@ -6,7 +6,13 @@
  * Purpose: read the pk data to use in the mcmc chain
  *==========================================================================*/
 
-#include<string>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
 
 #include "parse_ini.h"
 
@@ -38,6 +44,9 @@ class Read_pk_files{
 
 
   public:
+    //gsl vectors and matrices containing the content of files
+    gsl_vector *data; // measured P(k)
+    gsl_vector *kj, *G2, *W0j;     //P(k), kj, G^2(ki), W0j
     /*==========================================================================
      * Constructor of the object
      * Parameter
@@ -46,5 +55,11 @@ class Read_pk_files{
      *  read in and the bins to consider
      *==========================================================================*/
     Read_pk_files(std::string pk_dataset);
+    /*==========================================================================
+     * Destructor of the object
+     *==========================================================================*/
+    ~Read_pk_files(std::string pk_dataset){
+      gsl_vector_free(data);
+    }
 
 };  
