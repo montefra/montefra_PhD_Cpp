@@ -6,15 +6,17 @@
  * Purpose: read the pk data to use in the mcmc chain
  *==========================================================================*/
 
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <vector>
 
-#include <gsl/gsl_vector.h>
+#include <gsl/gls_linalg.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_vector.h>
 
 #include "parse_ini.h"
+#include "gsl_funcs.h"
 
 class Read_pk_files{
   private:
@@ -26,6 +28,12 @@ class Read_pk_files{
       //spectrum before convolving with the window function
       int kjtot, kjmin, kjmax, kjuse;  
     } n_bins;
+    //gsl vectors and matrices containing the content of files
+    gsl_vector *data; // measured P(k)
+    gsl_matrix *invcov; //inverse covariance
+    gsl_matrix *Wij;  //window matrix
+    gsl_vector *kj, *W0j, *G2i;     //kj, W0j, G^2(ki)
+    double G20;  // G^2(ki=0), stored in the first element of the G20i file
     /*==========================================================================
      * read the number of bins to read from the files and to use for the
      * likelihood
@@ -41,12 +49,30 @@ class Read_pk_files{
      *  ini: inifile
      *==========================================================================*/
     void read_pk(ParseIni ini);
+    /*==========================================================================
+     * read and invert the covariance matrix
+     * Parameter
+     * ---------
+     *  ini: inifile
+     *==========================================================================*/
+    void read_invert_cov(ParseIni ini);
+    /*==========================================================================
+     * read the files for the window matrix
+     * Parameter
+     * ---------
+     *  ini: inifile
+     *==========================================================================*/
+    void read_window(ParseIni ini);
 
+    /*==========================================================================
+     * Allocate gls vectors and matrices used when convolving and computing the
+     * chi^2
+     *==========================================================================*/
+    void alloc_gsl(){
+
+    }
 
   public:
-    //gsl vectors and matrices containing the content of files
-    gsl_vector *data; // measured P(k)
-    gsl_vector *kj, *G2, *W0j;     //P(k), kj, G^2(ki), W0j
     /*==========================================================================
      * Constructor of the object
      * Parameter
@@ -60,6 +86,20 @@ class Read_pk_files{
      *==========================================================================*/
     ~Read_pk_files(std::string pk_dataset){
       gsl_vector_free(data);
+      gsl_matrix_free(invcov);
+      gsl_matrix_free(Wij);
+      gsl_vector_free(kj);
+      gsl_vector_free(W0j);
+      gsl_vector_free(G2i);
     }
+
+    /*==========================================================================
+     * return the gsl vector containing the wavenumber where to evaluate the
+     * model power spectrum
+     * output
+     * ------
+     *  k: gsl vector
+     *==========================================================================*/
+    gsl_vector *get_k(){return{kj}};
 
 };  
