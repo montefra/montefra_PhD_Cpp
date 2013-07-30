@@ -2,6 +2,8 @@
 *.wis
 *.log
 *.gch
+*.exe
+.sconsign.dblite
 #executables
 FT/ft_1D 
 Lognormal/lognormal
