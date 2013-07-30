@@ -6,6 +6,8 @@
  * Purpose: container for functions using gsl
  *==========================================================================*/
 
+#include "gsl_funcs.h"
+
 /*==========================================================================
  * read a vector of size dim from file 'file_name'
  * Parameter
@@ -18,9 +20,9 @@
  * ------
  *  vector: gsl vector
  *==========================================================================*/
-gsl_vector *read_gsl_vector(std::string file_name, int dim){
+gsl_vector *gslf::read_gsl_vector(std::string file_name, int dim){
   // create a gsl vector and read in the whole file
-  gsl_vector *vector = gsl_vector(dim);
+  gsl_vector *vector = gsl_vector_alloc(dim);
   FILE *f = fopen(file_name.c_str(), "r");   //file unit
   if(gsl_vector_fscanf(f, vector) !=0){
     std::cerr << "The vector in file  " <<file_name << " can't be read." << std::endl;
@@ -47,7 +49,7 @@ gsl_vector *read_gsl_vector(std::string file_name, int dim){
  * ------
  *  vector: gsl vector
  *==========================================================================*/
-gsl_vector *read_cut_gsl_vector(std::string file_name, int dim, int cut_dim,
+gsl_vector *gslf::read_cut_gsl_vector(std::string file_name, int dim, int cut_dim,
     int imin){
   //read the full vector
   gsl_vector *temp_input = read_gsl_vector(file_name, dim);
@@ -74,7 +76,7 @@ gsl_vector *read_cut_gsl_vector(std::string file_name, int dim, int cut_dim,
  *  matrix: gsl matrix
  *    output gsl matrix
  *==========================================================================*/
-gsl_matrix *read_gsl_matrix(std::string file_name, int xdim, int
+gsl_matrix *gslf::read_gsl_matrix(std::string file_name, int xdim, int
     ydim){
   // create a gsl matrix and read in the whole file
   gsl_matrix *matrix = gsl_matrix_alloc(xdim, ydim); 
@@ -85,7 +87,7 @@ gsl_matrix *read_gsl_matrix(std::string file_name, int xdim, int
   }
   fclose(f);
 
-  return matrix
+  return(matrix);
 }
 /*==========================================================================
  * read a matrix of size xdim*ydim from file 'file_name', cut to 
@@ -105,7 +107,7 @@ gsl_matrix *read_gsl_matrix(std::string file_name, int xdim, int
  *  matrix: gsl matrix
  *    output cut gsl matrix
  *==========================================================================*/
-gsl_matrix *read_cut_gsl_matrix(std::string file_name, int xdim, int ydim, int
+gsl_matrix *gslf::read_cut_gsl_matrix(std::string file_name, int xdim, int ydim, int
     cut_xdim, int cut_ydim, int xmin, int ymin){
   //read the full matrix
   gsl_matrix *temp_input = read_gsl_matrix(file_name, xdim, ymin);
@@ -118,7 +120,7 @@ gsl_matrix *read_cut_gsl_matrix(std::string file_name, int xdim, int ydim, int
   gsl_matrix_memcpy(matrix, &(mview.matrix));
 
   gsl_matrix_free(temp_input);
-  return matrix;
+  return(matrix);
 }
 
 
@@ -133,7 +135,7 @@ gsl_matrix *read_cut_gsl_matrix(std::string file_name, int xdim, int ydim, int
  *  spl: gsl spline object
  *    containing the read file
  *==========================================================================*/
-gsl_spline *read_2_spline(std::string fname){
+gsl_spline *gslf::read_2_spline(std::string fname){
   std::vector<double> x,y;  //temporary vector to read the file
   
   x.push_back(0);   //add point P(k=0)=0 to the input file: avoid errors when the spline is evaluated

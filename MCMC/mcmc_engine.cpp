@@ -19,15 +19,14 @@
  *  ini: ParseIni object
  *    ini object containing the the parametes limits and step
  *==========================================================================*/
-MCMC::MCMC(std::vector<Likelihood> likes, ParseIni ini):
+MCMC::MCMC(std::vector<Likelihood> &likes, ParseIni &ini){
   this->likes = likes;
-{
   n_likes=likes.size();
 
   //read the file root
-  if(ini.get_param<std::string>("file_root", &file_root)!=0) exit(70);
+  if(ini.get_param("file_root", &file_root)!=0) exit(70);
   //read the number of steps of the chain
-  if(ini.get_param<size_t>("n_steps", &n_steps)!=0) exit(71);
+  if(ini.get_param("n_steps", &n_steps)!=0) exit(71);
 
   init_random();
   //get the paramnames from the likelihoods
@@ -36,7 +35,7 @@ MCMC::MCMC(std::vector<Likelihood> likes, ParseIni ini):
 }
 
 
-/*==========================================================================
+/*=========================================================================a
  * retrieve the parameter names from the likelihoods
  *==========================================================================*/
 void MCMC::get_paramnames(){
@@ -64,8 +63,8 @@ void MCMC::get_paramnames(){
  * create the short and long paramnames, save them in the paramnames file
  *==========================================================================*/
 void MCMC::save_paramnames(){
-  std::string ofile = file_root+".paramnames"
-  ofstream out(ofile.c_str());
+  std::string ofile = file_root+".paramnames";
+  std::ofstream out(ofile.c_str());
   for(size_t i=0; i<n_parameters; ++i) 
     out << paramnames[i] << "\t" << long_names[i] << std::endl;
   out.close();
@@ -78,19 +77,19 @@ void MCMC::save_paramnames(){
  *  ini: ParseIni object
  *    inifile containing the parameters 
  *==========================================================================*/
-void MCMC::read_params(ParseIni ini){
+void MCMC::read_params(ParseIni &ini){
   double tstart, tmin, tmax, tstep; //temporary doubles
   //read the parameter limits one by one and save into the maps
   std::vector<std::string>::iterator it;
   for(it = paramnames.begin(); it != paramnames.end(); ++it){
-    if(get_mcmc_params(*it, &tstart, &tmin, &tmax, &tstep)!=0){
+    if(ini.get_mcmc_params(*it, &tstart, &tmin, &tmax, &tstep)!=0){
       std::cerr << "Parameter " << *it;
       std::cerr << " not found or incomplete" << std::endl;
       exit(75);
     }
     //if the parameters is to be changed (step size >0), start at a random point into the
     //allowed parameter range
-    if(tstep > 0.) tstart = tmin + (tmax-tmin)*gsl_rng_uniform(r); 
+    if(tstep > 0.) tstart = tmin + (tmax-tmin)*gsl_rng_uniform(rg); 
     start[*it] = tstart;
     min[*it] = tmin;
     max[*it] = tmax;
@@ -103,19 +102,84 @@ void MCMC::read_params(ParseIni ini){
  *==========================================================================*/
 void MCMC::run(){
   //open the output file
-  std::string ofile = file_root+".txt"
-  ofstream out(ofile.c_str());
-  out.setf(ios_base::scientific);
+  std::string ofile = file_root+".txt";
+  std::ofstream out(ofile.c_str());
+  out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
 
   //likelihoods
-  double like1=0, like2=0;
+  double like1=1., like2=1.;
+  size_t weights=0; //number of times the chains stays in one point
   //compute the likelihood at the starting point
   std::map<std::string, double> params1(start);
-  for(size_t i=0; i<n_likes; ++i) like1 += likes[i].get_like(params1);
+  for(size_t i=0; i<n_likes; ++i) like1 *= likes[i].get_like(params1);
+  weights=1;
 
+  for(size_t j=1; j<n_steps; ++j){ //loop over the mcmc steps
+    std::map<std::string, double> params2 = new_parameters(params1);
+    for(size_t i=0; i<n_likes; ++i) like2 *= likes[i].get_like(params2);
 
+    //criteria to accept the new likelihood: eitheir is larger or the 
+    //new-old ratio is larger than a random number. In this case print
+    //the old weight, likelihood and parameters, set the weights to 1 
+    //and save params2 and like2 into params1 and like1
+    if(like1 < like2 || like1/like2 > gsl_rng_uniform(r)){
+      out << weights << "\t" << like1;
+      //loop over the paramnames vector to make sure that the parameters are
+      //printed always in the same order
+      for(std::vector<std::string>::iterator it=paramnames.begin();
+          it!=paramnames.end(); ++it){  
+        out << "\t" << params1[*it];
+        params1[*it] = params2[*it];
+      }
+      out << std::endl;
+      weights = 1;
+      like1 = like2;
+    }
+    else ++weights;
 
-  close(out)
+    if((j+1)%100000 == 0 and common::verbose) 
+      std::cout << "loop number: " << j+1 << std::endl;
+  }
+
+  //if weights larger than one, means that the last set of parameter of the
+  //chain has not been saved to file
+  if(weights>1){
+    out << weights << "\t" << like1;
+    //loop over the paramnames vector to make sure that the parameters are
+    //printed always in the same order
+    for(std::vector<std::string>::iterator it=paramnames.begin();
+        it!=paramnames.end(); ++it){  
+      out << "\t" << params1[*it];
+    }
+    out << std::endl;
+  }
+  out.close();
 }
+
+/*==========================================================================
+ * randomly generate a new set of parameters
+ * Parameters
+ * ----------
+ *  params: map<string, double>
+ *    map containing the parameters to substitute
+ * output
+ * ------
+ *  newparams: map<string, double>   
+ *    map with the new parameters
+ *==========================================================================*/
+std::map<std::string, double> MCMC::new_parameters(std::map<std::string,
+    double> &params){
+  std::map<std::string, double> newparams;
+  std::map<std::string, double>::iterator it; 
+  for(it=params.begin(); it!=params.end(); ++it){
+    for(;;){
+      newparams[it->first] = it->second + gsl_ran_gaussian(rg, step[it->first]);
+      if(newparams[it->first] >= min[it->first] && 
+          newparams[it->first] <= max[it->first]) break;
+    }
+  }
+  return newparams;
+}
+

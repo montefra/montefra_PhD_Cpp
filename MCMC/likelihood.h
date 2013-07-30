@@ -7,6 +7,9 @@
  * object and take care of connecting those two to the mcmc engine
  *==========================================================================*/
 
+#pragma once
+
+#include <cmath>
 #include <map>
 #include <string>
 #include <vector>
@@ -22,9 +25,9 @@ class Likelihood{
 
   private:
     int dataset;    //dataset number
-    ParseIni ini;   //inifile
-    Theory theory;  //theory objec
-    Read_pk_files *data;
+    ParseIni *ini;   //inifile
+    Theory *theory;  //theory objec
+    Dataset *data;
 
     //short and long parameter names to pass to the mcmc chains
     std::vector<std::string> paramnames, long_names;
@@ -71,6 +74,6 @@ class Likelihood{
      *  params: map
      *    map with parameter name as key and its value as value
      *==========================================================================*/
-    double get_like(std::map<std::string, double> params);
+    double get_like(std::map<std::string, double> &params);
 
 };

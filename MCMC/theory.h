@@ -8,6 +8,9 @@
  * Provide method(s) to that return the model
  *==========================================================================*/
 
+#pragma once
+
+#include <cmath>
 #include <map>
 #include <string>
 #include <vector>

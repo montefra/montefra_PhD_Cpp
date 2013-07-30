@@ -6,9 +6,12 @@
  * Purpose: initialise the parameter and run the mcmc 
  *==========================================================================*/
 
+#pragma once
+
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <string>
@@ -29,8 +32,8 @@ class MCMC{
     std::string file_root;  //root of the ouput files
     size_t n_steps;  //number of steps in the chain
     gsl_rng *r, *rg;   // gsl random generators
-
-    std::vector<std::string> paramnames, long_names; //parameter names from the likelihoods
+    //parameter names from the likelihoods
+    std::vector<std::string> paramnames, long_names;
     size_t n_parameters;  //number of parameters
 
     //maps containing the starting point, the mimimum and the maximum values
@@ -62,12 +65,12 @@ class MCMC{
      *  ini: ParseIni object
      *    inifile containing the parameters 
      *==========================================================================*/
-    void read_params(ParseIni ini);
+    void read_params(ParseIni &ini);
 
     /*==========================================================================
      * initialise the parameter names (mostly call the three above functions)
      *==========================================================================*/
-    void initialise_paramnames(ParseIni ini){
+    void initialise_paramnames(ParseIni &ini){
       get_paramnames();
       save_paramnames();
       long_names.clear();  //clear the long names
@@ -76,10 +79,17 @@ class MCMC{
 
     /*==========================================================================
      * randomly generate a new set of parameters
+     * Parameters
+     * ----------
+     *  params: map<string, double>
+     *    map containing the parameters to substitute
+     * output
+     * ------
+     *  newparams: map<string, double>   
+     *    map with the new parameters
      *==========================================================================*/
-    void new_parameters(std::map<std::string, double> params){
-
-    }
+    std::map<std::string, double> new_parameters(std::map<std::string, double>
+        &params);
 
   public:
     /*==========================================================================
@@ -93,7 +103,7 @@ class MCMC{
      *  ini: ParseIni object
      *    ini object containing the the parametes limits and step
      *==========================================================================*/
-    MCMC(std::vector<Likelihood> likes, ParseIni ini);
+    MCMC(std::vector<Likelihood> &likes, ParseIni &ini);
 
     /*==========================================================================
      * Destructor

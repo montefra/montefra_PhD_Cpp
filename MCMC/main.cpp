@@ -11,7 +11,7 @@
 int main(int argc, char* argv[])
 {
   // read the inifile
-  if(argc < 1){
+  if(argc < 2){
     std::cerr << "No inifile provided." << std::endl;
     std::cerr << "Usage: " << std::endl;
     std::cerr << "  " << argv[0] << " inifile.ini" << std::endl;
@@ -20,22 +20,32 @@ int main(int argc, char* argv[])
 
   ParseIni ini_file(argv[1]);
 
+  //verbose: set to false by default
+  if(ini_file.get_param("verbose", &common::verbose)!=0) 
+    common::verbose = false;
+
   //initialise the theory reading the linear and 1loop power spectrum
   Theory theory(ini_file);
 
   int n_datasets; //number of datasets
-  if(ini_file.get_parami<int>("n_datasets", &n_datasets) != 0){
+  if(ini_file.get_param("n_datasets", &n_datasets) != 0){
     std::cerr << "'n_datasets' is not in the inifile" << std::endl;
     exit(2);
   }
+  if(common::verbose) 
+    std::cout << "Reading " << n_datasets << " datasets" << std::endl;
 
   //vector of likelihoods
   std::vector<Likelihood> likelihoods; 
   //create a likelihood for each dataset
   //the constructor wants the likelihood number (starting from 1)
   //the inifile and the theory object (it saves a local copy) 
-  for(int i=0; i<n_dataset; ++i){
+  for(int i=0; i<n_datasets; ++i){
     likelihoods.push_back(Likelihood(i+1, ini_file, theory));
+  }
+  if(common::verbose){
+    std::cout << "Datasets read and likelihoods initialized" << std::endl;
+    std::cout << std::endl << "Start the mcmc chain" << std::endl;
   }
 
   //initialise mcmc engine creating the parameter names and reading the

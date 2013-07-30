@@ -1,0 +1,17 @@
+#scons scrip
+
+#list of cpp files to compile
+listcpp = ['gsl_funcs.cpp', 'parse_ini.cpp', 'read_file.cpp', 'theory.cpp',
+    'likelihood.cpp', 'mcmc_engine.cpp', 'main.cpp']
+
+#extra flags
+ccflags = ['-g', '-Wall']
+#ccflags = ['-O2', ]
+
+#libraries
+libs=['gsl', 'gslcblas', 'm']
+
+linkflags = ccflags[:]
+
+Program('mcmc.exe', listcpp, LIBS=libs, CCFLAGS=ccflags, LINKFLAGS=linkflags)
+

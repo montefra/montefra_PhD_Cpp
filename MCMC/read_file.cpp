@@ -15,18 +15,18 @@
  *  pk_file: string with the file name containing the name of the file to
  *  read in and the bins to consider
  *==========================================================================*/
-Read_pk_files::Read_pk_files(std::string pk_dataset){
+Dataset::Dataset(std::string pk_dataset){
   
   //import the dataset file into a inifile object
   dataset = new ParseIni(pk_dataset);
   //get the number of bins
-  get_bin_numbers(dataset);
+  get_bin_numbers(*dataset);
   //read the measured power spectrum
-  read_pk(dataset);
+  read_pk(*dataset);
   //read and invert the covariance matrix
-  read_invert_cov(dataset);
+  read_invert_cov(*dataset);
   //read the window file files
-  read_window(dataset);
+  read_window(*dataset);
 
   //allocata the gsl vectors and matrices needed for the window matrix
   //convolution and chi^2
@@ -41,13 +41,13 @@ Read_pk_files::Read_pk_files(std::string pk_dataset){
  * ---------
  *  ini: inifile
  *==========================================================================*/
-void Read_pk_files::get_bin_numbers(ParseIni ini){
-    if(ini.get_param<int>("kitot", &n_bins.kitot) != 0) exit(10);
-    if(ini.get_param<int>("kimin", &n_bins.kimin) != 0) exit(11);
-    if(ini.get_param<int>("kimax", &n_bins.kimax) != 0) exit(12);
-    if(ini.get_param<int>("kjtot", &n_bins.kjtot) != 0) exit(13);
-    if(ini.get_param<int>("kjmin", &n_bins.kjmin) != 0) exit(14);
-    if(ini.get_param<int>("kjmax", &n_bins.kjmax) != 0) exit(15);
+void Dataset::get_bin_numbers(ParseIni ini){
+    if(ini.get_param("kitot", &n_bins.kitot) != 0) exit(10);
+    if(ini.get_param("kimin", &n_bins.kimin) != 0) exit(11);
+    if(ini.get_param("kimax", &n_bins.kimax) != 0) exit(12);
+    if(ini.get_param("kjtot", &n_bins.kjtot) != 0) exit(13);
+    if(ini.get_param("kjmin", &n_bins.kjmin) != 0) exit(14);
+    if(ini.get_param("kjmax", &n_bins.kjmax) != 0) exit(15);
 
     n_bins.kiuse = n_bins.kimax-n_bins.kimin;
     n_bins.kjuse = n_bins.kjmax-n_bins.kjmin;
@@ -59,9 +59,11 @@ void Read_pk_files::get_bin_numbers(ParseIni ini){
  * ---------
  *  ini: inifile
  *==========================================================================*/
-void Read_pk_files::read_pk(ParseIni ini){
+void Dataset::read_pk(ParseIni ini){
   std::string pk_file;
-  if(ini.get_param<std::string>("pk_file", &pk_file)!=0) exit(20);
+  if(ini.get_param("pk_file", &pk_file)!=0) exit(20);
+  if(common::verbose)
+    std::cout << "Reading power spectrum file " << pk_file << std::endl;
 
   double dummy, pk;
   //number of skipped lines and lines saved into the gsl_vector
@@ -76,9 +78,9 @@ void Read_pk_files::read_pk(ParseIni ini){
     if(line.find("#") == 0)  //if in the line there is a '#' skip the line (it's likely a comment)
       continue;
     if(skip_counter++<n_bins.kimin) continue;  //skip first kimin bins
-    else if(saved_counter < n_bins.kiuse){  //save all the kiuse after kimin
+    else if(saved_lines < n_bins.kiuse){  //save all the kiuse after kimin
       std::stringstream(line) >> dummy >> pk >> dummy >> dummy;
-      gsl_vector_set(data, saved_counter++, pk);
+      gsl_vector_set(data, saved_lines++, pk);
     }
     else break;  //after reading all of them break out of the while loop
   }
@@ -91,11 +93,16 @@ void Read_pk_files::read_pk(ParseIni ini){
  * ---------
  *  ini: inifile
  *==========================================================================*/
-void Read_pk_files::read_invert_cov(ParseIni ini){
+void Dataset::read_invert_cov(ParseIni ini){
   std::string covmat_file; //file name of the covariance
-  if(ini.get_param<std::string>("covmat_file", &covmat_file)!=0) exit(21);
+  if(ini.get_param("covmat_file", &covmat_file)!=0) exit(21);
+  if(common::verbose){
+    std::cout << "Reading and inverting the convariance from file ";
+    std::cout << covmat_file << std::endl;
+  }
+
   //read and cut the covariance matrix
-  gsl_matrix * temp_cov = read_cut_matrix(covmat_file, n_bins.kitot,
+  gsl_matrix * temp_cov = gslf::read_cut_gsl_matrix(covmat_file, n_bins.kitot,
       n_bins.kitot, n_bins.kiuse, n_bins.kiuse, n_bins.kimin, n_bins.kimin);
   //allocata the space for the inverse
   invcov = gsl_matrix_alloc(n_bins.kiuse,n_bins.kiuse);  
@@ -118,7 +125,7 @@ void Read_pk_files::read_invert_cov(ParseIni ini){
   // unbias the inverse covariance matrix as in Hartlap et al. 2007 
   // multiplying it my (n_mocks-n_bins-2)/(n_mock-1)
   int n_mocks;  //number of mocks used to estimate che covariance matrix
-  if(ini.get_param<int>("n_mocks", &n_mocks) == 0){
+  if(ini.get_param("n_mocks", &n_mocks) == 0){
     // if n-p-2<0 it's not possible to unbias the inverse
     if(n_mocks < n_bins.kiuse+2){
       std::cerr << "The covariance matrix is singular and should not be ";
@@ -145,29 +152,78 @@ void Read_pk_files::read_invert_cov(ParseIni ini){
  * ---------
  *  ini: inifile
  *==========================================================================*/
-void Read_pk_files::read_window(ParseIni ini){
+void Dataset::read_window(ParseIni ini){
   std::string file_names; //window matrix file names
  
+  if(common::verbose)
+    std::cout << "Reading the window matrix files" << std::endl;
   //read the window matrix Wij
-  if(ini.get_param<std::string>("wij_file", &file_names)!=0) exit(30);
-  Wij = read_cut_matrix(wij_file, n_bins.kitot,
+  if(ini.get_param("wij_file", &file_names)!=0) exit(30);
+  Wij = gslf::read_cut_gsl_matrix(file_names, n_bins.kitot,
       n_bins.kjtot, n_bins.kiuse, n_bins.kjuse, n_bins.kimin, n_bins.kjmin);
 
   //read kj
-  if(ini.get_param<std::string>("kj_file", &file_names)!=0) exit(31);
-  kj = read_cut_gsl_vector(file_names, n_bins.kjtot, n_bins.kjuse, n_bins.kjmin);
+  if(ini.get_param("kj_file", &file_names)!=0) exit(31);
+  kj = gslf::read_cut_gsl_vector(file_names, n_bins.kjtot, n_bins.kjuse, n_bins.kjmin);
 
   //read W0j
-  if(ini.get_param<std::string>("w0j_file", &file_names)!=0) exit(32);
-  W0j = read_cut_gsl_vector(file_names, n_bins.kjtot, n_bins.kjuse, n_bins.kjmin);
+  if(ini.get_param("w0j_file", &file_names)!=0) exit(32);
+  W0j = gslf::read_cut_gsl_vector(file_names, n_bins.kjtot, n_bins.kjuse, n_bins.kjmin);
 
   //read whole G20i file
-  if(ini.get_param<std::string>("G2i_file", &file_names)!=0) exit(33);
-  gsl_vector *temp_G = read_cut_gsl_vector(file_names, n_bins.kitot+1);
-  G20 = gsl_vector_get(gsl_vector, 0);  //get the first element
+  if(ini.get_param("G2i_file", &file_names)!=0) exit(33);
+  gsl_vector *temp_G = gslf::read_gsl_vector(file_names, n_bins.kitot+1);
+  G20 = gsl_vector_get(temp_G, 0);  //get the first element
   G2i = gsl_vector_alloc(n_bins.kiuse);
   //copy the interesting part of the vector
-  gsl_vector_memcpy(G2i, &(gsl_vector_subvector(temp_G, n_bins.kimin+1,
-          n_bins.kiuse).vector));
+  gsl_vector_view vview = gsl_vector_subvector(temp_G, n_bins.kimin+1,
+      n_bins.kiuse);
+  gsl_vector_memcpy(G2i, &(vview.vector));
   gsl_vector_free(temp_G);
+}
+
+
+/*==========================================================================
+ * return the input gsl vector convolved with the window matrix
+ * Parameters
+ * ----------
+ *  model: gsl vector
+ *    power spectrum to be convolved
+ * output
+ * ------
+ *  convolved_model: gsl vector
+ *==========================================================================*/
+gsl_vector *Dataset::convolve(gsl_vector *model){
+  if(gsl_blas_dgemv(CblasNoTrans, 1., Wij, model, 0., convolved_model) !=0) 
+    exit(34);
+  // integral constraint: add a rescaled version of the window function to
+  // convolved_model
+  double c;  //constant used to rescale the window function
+  if(gsl_blas_ddot(W0j, model, &c)) exit(35);  // c = sum_j W0j P(kj)
+  // convolved_model = convolved_model - c*G^2(ki)/G^2(0)
+  if(gsl_blas_daxpy(-c/G20, G2i, convolved_model)) exit(36);  
+
+  return(convolved_model);
+}
+
+/*==========================================================================
+ * compute the chi^2 give the model
+ * Parameters
+ * ----------
+ *  model: gsl vector
+ *    model power spectrum
+ * output
+ * ------
+ *  chi2: double
+ *    chi^2 from the data stored here and a model
+ *==========================================================================*/
+double Dataset::get_chi2(gsl_vector *model){
+  double chi2;
+  if(gsl_vector_sub(model, data) != 0) exit(37);  //model = model - data
+  if(gsl_blas_dgemv(CblasNoTrans, 1., invcov, model, 0., tempv)!= 0)
+    exit(38);  // tempv=invcov (model-data)  
+  // chi^2=(model-data)^{T}tempv
+  if(gsl_blas_ddot(model, tempv, &chi2)!= 0 ) exit(39);
+
+  return(chi2);
 }

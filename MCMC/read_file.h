@@ -6,21 +6,26 @@
  * Purpose: read the pk data to use in the mcmc chain
  *==========================================================================*/
 
+#pragma once
+
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 
-#include <gsl/gls_linalg.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_vector.h>
 
+#include "common.h"
 #include "parse_ini.h"
 #include "gsl_funcs.h"
 
-class Read_pk_files{
+class Dataset{
   private:
-    ParseIni dataset;
+    ParseIni *dataset;
 
     struct nbins{
       int kitot, kimin, kimax, kiuse;  //bins in the measured power spectrum
@@ -34,6 +39,9 @@ class Read_pk_files{
     gsl_matrix *Wij;  //window matrix
     gsl_vector *kj, *W0j, *G2i;     //kj, W0j, G^2(ki)
     double G20;  // G^2(ki=0), stored in the first element of the G20i file
+    gsl_vector *convolved_model;  //model convolved with the window matrix
+    gsl_vector *tempv; //store the matrix multiplication with the inverse covariance
+
     /*==========================================================================
      * read the number of bins to read from the files and to use for the
      * likelihood
@@ -69,7 +77,8 @@ class Read_pk_files{
      * chi^2
      *==========================================================================*/
     void alloc_gsl(){
-
+      convolved_model = gsl_vector_alloc(n_bins.kiuse);
+      tempv = gsl_vector_alloc(n_bins.kiuse);
     }
 
   public:
@@ -80,17 +89,19 @@ class Read_pk_files{
      *  pk_file: string with the file name containing the name of the file to
      *  read in and the bins to consider
      *==========================================================================*/
-    Read_pk_files(std::string pk_dataset);
+    Dataset(std::string pk_dataset);
     /*==========================================================================
      * Destructor of the object
      *==========================================================================*/
-    ~Read_pk_files(std::string pk_dataset){
+    ~Dataset(){
       gsl_vector_free(data);
       gsl_matrix_free(invcov);
       gsl_matrix_free(Wij);
       gsl_vector_free(kj);
       gsl_vector_free(W0j);
       gsl_vector_free(G2i);
+      gsl_vector_free(convolved_model);
+      gsl_vector_free(tempv);
     }
 
     /*==========================================================================
@@ -100,6 +111,31 @@ class Read_pk_files{
      * ------
      *  k: gsl vector
      *==========================================================================*/
-    gsl_vector *get_k(){return{kj}};
+    gsl_vector *get_k(){return(kj);}
+
+    /*==========================================================================
+     * return the input gsl vector convolved with the window matrix
+     * Parameters
+     * ----------
+     *  model: gsl vector
+     *    power spectrum to be convolved
+     * output
+     * ------
+     *  convolved_model: gsl vector
+     *==========================================================================*/
+    gsl_vector *convolve(gsl_vector *model);
+
+    /*==========================================================================
+     * compute the chi^2 give the model
+     * Parameters
+     * ----------
+     *  model: gsl vector
+     *    model power spectrum
+     * output
+     * ------
+     *  chi2: double
+     *    chi^2 from the data stored here and a model
+     *==========================================================================*/
+    double get_chi2(gsl_vector *model);
 
 };  

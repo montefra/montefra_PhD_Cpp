@@ -23,11 +23,11 @@ Theory::Theory(ParseIni ini){
   std::string file_names; //names of the model power spectra
 
   //linear power spectrum
-  if(ini.get_param<std::string>("plin", &file_names)!=0) exit(61);
-  spllin = read_2_spline(file_names);
+  if(ini.get_param("plin", &file_names)!=0) exit(61);
+  spllin = gslf::read_2_spline(file_names);
   //1loop power spectrum
-  if(ini.get_param<std::string>("p1loop", &file_names)!=0) exit(61);
-  spl1l = read_2_spline(file_names);
+  if(ini.get_param("p1loop", &file_names)!=0) exit(61);
+  spl1l = gslf::read_2_spline(file_names);
 
   //allocate the accelerators
   acclin = gsl_interp_accel_alloc();
@@ -69,10 +69,10 @@ void Theory::fill_paramnames(){
 double Theory::get_model(double k, std::map<std::string, double> params){
   double ak = params["alpha"]*k;
   double pk = gsl_spline_eval(spllin, ak, acclin);   // P_lin(alpha*k)
-  pk *= exp(-k**2/params["k_star"]**2]);  //*exp(-(k/kstar)^2)
+  pk *= exp(-pow(k/params["k_star"], 2));  //*exp(-(k/kstar)^2)
   //+ A_MC P_1loop(alpha*k)
   pk += params["amc"] * gsl_spline_eval(spl1l, ak, acc1l);
-  pk *= params["bias"]**2;  // *bias^2
+  pk *= pow(params["bias"], 2);  // *bias^2
   pk += params["noise"];   //add noise
   return(pk);                     
 }
