@@ -22,6 +22,17 @@
 namespace gslf{
 
   /*==========================================================================
+   * Skip commented lines in file
+   * Parameters
+   * ----------
+   *  file: c file pointer
+   *    file pointer (c style)
+   *  comment: char
+   *    comment character
+   *==========================================================================*/
+  void skip_comment_lines(FILE *file, char comment);
+
+  /*==========================================================================
    * read a vector of size dim from file 'file_name'
    * Parameter
    * ---------

@@ -9,6 +9,34 @@
 #include "gsl_funcs.h"
 
 /*==========================================================================
+ * Skip commented lines in file
+ * Parameters
+ * ----------
+ *  file: c file pointer
+ *    file pointer (c style)
+ *  comment: char
+ *    comment character
+ *==========================================================================*/
+void gslf::skip_comment_lines(FILE *file, char comment){
+  while(true){
+    //get the file position before reading the next char
+    fpos_t pos;  
+    fgetpos(file, &pos); 
+    int c = fgetc(file); //read a char
+    if(c == '#'){ //if it is a comment
+      do{  //go ahead until the end of the line is hit
+        c = fgetc(file);
+      }while(c != '\n');
+    }
+    else{ //if the line does not start with a comment
+      //set back the position at the first position in the line
+      fsetpos(file, &pos); 
+      break;
+    }
+  }
+}
+
+/*==========================================================================
  * read a vector of size dim from file 'file_name'
  * Parameter
  * ---------
@@ -28,6 +56,8 @@ gsl_vector *gslf::read_gsl_vector(std::string file_name, int dim){
     std::cerr << "Error opening file " << file_name << std::endl;
     exit(80);
   }
+  skip_comment_lines(f, '#');
+
   if(gsl_vector_fscanf(f, vector) !=0){
     std::cerr << "The vector in file  " <<file_name << " can't be read." << std::endl;
     exit(81);
@@ -89,16 +119,7 @@ gsl_matrix *gslf::read_gsl_matrix(std::string file_name, int xdim, int
     std::cerr << "Error opening file " << file_name << std::endl;
     exit(82);
   }
-  while(true){
-    uchar8 c = fgetc(f);
-    if(c == '#'){
-      do{
-        uchar8 ci = fgetc(in);
-      }while (ci != '\n')
-    }
-    else break;
-  }
-
+  skip_comment_lines(f, '#');
 
   if(gsl_matrix_fscanf(f, matrix) !=0){
     std::cerr << "The matrix in file  " <<file_name << " can't be read." << std::endl;
@@ -108,6 +129,8 @@ gsl_matrix *gslf::read_gsl_matrix(std::string file_name, int xdim, int
 
   return(matrix);
 }
+
+
 /*==========================================================================
  * read a matrix of size xdim*ydim from file 'file_name', cut to 
  * 'cut_xdim*cut_ydim' using xmin and ymin as the mimimum x and y indeces
@@ -129,7 +152,7 @@ gsl_matrix *gslf::read_gsl_matrix(std::string file_name, int xdim, int
 gsl_matrix *gslf::read_cut_gsl_matrix(std::string file_name, int xdim, int ydim, int
     cut_xdim, int cut_ydim, int xmin, int ymin){
   //read the full matrix
-  gsl_matrix *temp_input = read_gsl_matrix(file_name, xdim, ymin);
+  gsl_matrix *temp_input = read_gsl_matrix(file_name, xdim, ydim);
   //allocate the output matrix
   gsl_matrix *matrix = gsl_matrix_alloc(cut_xdim, cut_ydim);
   //take a view of the submatrix

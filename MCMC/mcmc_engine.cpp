@@ -109,9 +109,11 @@ void MCMC::read_params(ParseIni &ini){
   for(it = paramnames.begin(); it != paramnames.end(); ++it){
     if(ini.get_mcmc_params(*it, &tstart, &tmin, &tmax, &tstep)!=0)
       ini.ini_error(*it, 63);
-    //if the parameters is to be changed (step size >0), start at a random point into the
-    //allowed parameter range
-    if(tstep > 0.) tstart = tmin + (tmax-tmin)*gsl_rng_uniform(rg); 
+    //if the parameters is to be changed (step size >0), start at a randomly
+    //displaced point within the range
+    if(tstep > 0.) tstart = tstart + gsl_ran_gaussian(rg, tstep); 
+    if(tstart<tmin) tstart=tmin;
+    else if(tstart>tmax) tstart=tmax;
     start[*it] = tstart;
     min[*it] = tmin;
     max[*it] = tmax;

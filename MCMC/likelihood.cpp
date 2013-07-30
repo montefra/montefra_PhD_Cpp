@@ -69,7 +69,7 @@ void Likelihood::retrieve_paramnames(){
  *  params: map
  *    map with parameter name as key and its value as value
  *==========================================================================*/
-double Likelihood::get_like(std::map<std::string, double> &params){
+double Likelihood::get_like(std::map<std::string, double> params){
   std::map<std::string, double> to_theory;  //parameters to pass to the theory
   std::map<std::string, std::string>::iterator it; //interator for the mcmc2theory map
   //save in to_theory the parameters to pass to theory.get_model to compute the

@@ -34,6 +34,9 @@ Theory::Theory(ParseIni ini){
   //allocate the accelerators
   acclin = gsl_interp_accel_alloc();
   acc1l = gsl_interp_accel_alloc();
+
+  //fill the paramnames
+  fill_paramnames();
 }
 /*==========================================================================
  * Destructor
