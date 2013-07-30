@@ -28,9 +28,12 @@ Likelihood::Likelihood(int dataset, ParseIni &ini, Theory &theory)
   //read the dataset
   std::string pk_dataset = std::string("pk_dataset")+
     common::to_string(this->dataset);
+  std::string dataset_file;
+  if(ini.get_param(pk_dataset, &dataset_file) != 0)
+    ini.ini_error(pk_dataset, 20);
   if(common::verbose)
-    std::cout << "Reading dataset :" << dataset << std::endl;
-  data = new Dataset(pk_dataset);
+    std::cout << "Reading dataset #" << dataset << " from " << dataset_file << std::endl;
+  data = new Dataset(dataset_file);
 
   //get the paramnames from the theory and create append the dataset number to
   //the short name

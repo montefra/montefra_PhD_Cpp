@@ -76,10 +76,7 @@ class Dataset{
      * Allocate gls vectors and matrices used when convolving and computing the
      * chi^2
      *==========================================================================*/
-    void alloc_gsl(){
-      convolved_model = gsl_vector_alloc(n_bins.kiuse);
-      tempv = gsl_vector_alloc(n_bins.kiuse);
-    }
+    void alloc_gsl();
 
   public:
     /*==========================================================================
@@ -89,20 +86,11 @@ class Dataset{
      *  pk_file: string with the file name containing the name of the file to
      *  read in and the bins to consider
      *==========================================================================*/
-    Dataset(std::string pk_dataset);
+    Dataset(std::string &pk_dataset);
     /*==========================================================================
      * Destructor of the object
      *==========================================================================*/
-    ~Dataset(){
-      gsl_vector_free(data);
-      gsl_matrix_free(invcov);
-      gsl_matrix_free(Wij);
-      gsl_vector_free(kj);
-      gsl_vector_free(W0j);
-      gsl_vector_free(G2i);
-      gsl_vector_free(convolved_model);
-      gsl_vector_free(tempv);
-    }
+    ~Dataset();
 
     /*==========================================================================
      * return the gsl vector containing the wavenumber where to evaluate the

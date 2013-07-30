@@ -1,5 +1,20 @@
 #scons scrip
 
+#Help("Options to build the code")
+##variables
+#vars = Variables(None, ARGUMENTS)
+##compiler
+#vars.Add("CC", "Set the compiler", 'g++')
+##debug
+#vars.Add("debug", "Debug options", "")
+##optimisation
+#vars.Add("
+#
+##define the environment
+#env = Environment()
+#
+
+
 #list of cpp files to compile
 listcpp = ['gsl_funcs.cpp', 'parse_ini.cpp', 'read_file.cpp', 'theory.cpp',
     'likelihood.cpp', 'mcmc_engine.cpp', 'main.cpp']
@@ -13,5 +28,8 @@ libs=['gsl', 'gslcblas', 'm']
 
 linkflags = ccflags[:]
 
-Program('mcmc.exe', listcpp, LIBS=libs, CCFLAGS=ccflags, LINKFLAGS=linkflags)
+#CPPPATH: if given the files included are scanned for new versions and if necessary the object recreated
+#
+
+Program(target='mcmc.exe', source=listcpp, LIBS=libs, CCFLAGS=ccflags, LINKFLAGS=linkflags, CPPPATH = '.')
 

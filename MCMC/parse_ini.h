@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -21,6 +22,7 @@ class ParseIni
 {
 
   private:
+    const std::string ininame;  //name of the ini file 
     std::vector<std::string> inis;   //vector containing the lines of the inifile
     size_t inisize;   //size of the inifile vector
     std::string comment;   //string preceding comments
@@ -48,15 +50,31 @@ class ParseIni
      * inifile: string
      *   name of the input file contining the input parameters
      *==========================================================================*/
-    ParseIni(std::string inifile){ 
-      this->comment = "#";  //default comment
-      this->inis = this->readlines(inifile); 
-      this->inisize = this->inis.size();
-    }
+    ParseIni(std::string inifile);
     /*==========================================================================
      * Destructor
      *==========================================================================*/
-    ~ParseIni(){ this->inis.clear(); }
+    ~ParseIni(){this->inis.clear();}
+
+    /*==========================================================================
+     * return the name of the ini file
+     * output
+     * ------
+     *  fname: string
+     *==========================================================================*/
+    std::string get_fname(){return(ininame);}
+
+    /*==========================================================================
+     * standard error when retreaving a value from a inifile
+     * parameters
+     * ----------
+     *  param: string
+     *    name of the searched parameter
+     *  error: int
+     *    error code to give to exit
+     *==========================================================================*/
+    void ini_error(std::string param, int error);
+
 
     /*==========================================================================
      * Read MCMC paramter starting guess, boundaries and sigma
@@ -107,30 +125,9 @@ class ParseIni
      *     -2 the values could not be converted to the desired type
      *==========================================================================*/
     int get_param(std::string parname, std::string *value);
-    int get_param(std::string parname, int *value){
-      std::string str;   //string that will contain the int
-      int err = get_param(parname, &str); //read the parameter
-      int err_conversion;  //erro in the conversion from string to int
-      *value = common::to_number<int>(str, &err_conversion);
-      if(err_conversion!=0) err = -2;
-      return(err);
-    }
-    int get_param(std::string parname, size_t *value){
-      std::string str;   //string that will contain the int
-      int err = get_param(parname, &str); //read the parameter
-      int err_conversion;  //erro in the conversion from string to int
-      *value = common::to_number<size_t>(str, &err_conversion);
-      if(err_conversion!=0) err = -2;
-      return(err);
-    }
-    int get_param(std::string parname, double *value){
-      std::string str;   //string that will contain the int
-      int err = get_param(parname, &str); //read the parameter
-      int err_conversion;  //erro in the conversion from string to int
-      *value = common::to_number<double>(str, &err_conversion);
-      if(err_conversion!=0) err = -2;
-      return(err);
-    }
+    int get_param(std::string parname, int *value);
+    int get_param(std::string parname, size_t *value);
+    int get_param(std::string parname, double *value);
     int get_param(std::string parname, bool *value);
     /*==========================================================================
      * Read n parameters and return them in an vector
@@ -152,45 +149,9 @@ class ParseIni
      *   -2: the values could not be converted to the desired type
      *==========================================================================*/
     int get_param_list(std::string parname, size_t n, std::vector<std::string> &values);
-    int get_param_list(std::string parname, size_t n, std::vector<int> &values){
-      std::vector<std::string> vstr;   //string that will contain the int
-      int err = get_param_list(parname, n, vstr); //read the parameter
-      for(size_t i=0; i<vstr.size(); ++i){
-        int err_conversion;  //erro in the conversion from string to int
-        values.push_back(common::to_number<int>(vstr[i], &err_conversion));
-        if(err_conversion!=0){
-          err = -2;
-          break;
-        }
-      }
-      return(err);
-    }
-    int get_param_list(std::string parname, size_t n, std::vector<size_t> &values){
-      std::vector<std::string> vstr;   //string that will contain the int
-      int err = get_param_list(parname, n, vstr); //read the parameter
-      for(size_t i=0; i<vstr.size(); ++i){
-        int err_conversion;  //erro in the conversion from string to int
-        values.push_back(common::to_number<size_t>(vstr[i], &err_conversion));
-        if(err_conversion!=0){
-          err = -2;
-          break;
-        }
-      }
-      return(err);
-    }
-    int get_param_list(std::string parname, size_t n, std::vector<double> &values){
-      std::vector<std::string> vstr;   //string that will contain the int
-      int err = get_param_list(parname, n, vstr); //read the parameter
-      for(size_t i=0; i<vstr.size(); ++i){
-        int err_conversion;  //erro in the conversion from string to int
-        values.push_back(common::to_number<double>(vstr[i], &err_conversion));
-        if(err_conversion!=0){
-          err = -2;
-          break;
-        }
-      }
-      return(err);
-    }
+    int get_param_list(std::string parname, size_t n, std::vector<int> &values);
+    int get_param_list(std::string parname, size_t n, std::vector<size_t> &values);
+    int get_param_list(std::string parname, size_t n, std::vector<double> &values);
     //int get_param_list(std::string parname, size_t n, std::vector<bool> &values);
 };
 /*==========================================================================

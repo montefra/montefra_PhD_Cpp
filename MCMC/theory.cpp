@@ -23,15 +23,29 @@ Theory::Theory(ParseIni ini){
   std::string file_names; //names of the model power spectra
 
   //linear power spectrum
-  if(ini.get_param("plin", &file_names)!=0) exit(61);
+  if(ini.get_param("plin", &file_names)!=0)
+    ini.ini_error("plin", 10);
   spllin = gslf::read_2_spline(file_names);
   //1loop power spectrum
-  if(ini.get_param("p1loop", &file_names)!=0) exit(61);
+  if(ini.get_param("p1loop", &file_names)!=0)
+    ini.ini_error("p1loop", 11);
   spl1l = gslf::read_2_spline(file_names);
 
   //allocate the accelerators
   acclin = gsl_interp_accel_alloc();
   acc1l = gsl_interp_accel_alloc();
+}
+/*==========================================================================
+ * Destructor
+ * deallocate stuff
+ *==========================================================================*/
+Theory::~Theory(){
+  //free splines
+  gsl_spline_free(spllin);
+  gsl_spline_free(spl1l);
+  //free the interpolation accelerators
+  gsl_interp_accel_free(acclin);
+  gsl_interp_accel_free(acc1l);
 }
 
 /*==========================================================================

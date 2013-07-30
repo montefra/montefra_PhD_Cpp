@@ -4,6 +4,19 @@
 
 #include "parse_ini.h"
 /*==========================================================================
+ * Construnctor
+ * Parameters
+ * ----------
+ * inifile: string
+ *   name of the input file contining the input parameters
+ *==========================================================================*/
+ParseIni::ParseIni(std::string inifile): ininame(inifile){ 
+  this->comment = "#";  //default comment
+  this->inis = this->readlines(inifile); 
+  this->inisize = this->inis.size();
+}
+
+/*==========================================================================
  * read file 'inifile', skipping empty lines,
  * and stripping comments
  * Parameters
@@ -19,9 +32,12 @@ std::vector<std::string> ParseIni::readlines(std::string fname){
   std::string str;   //string containing each line
   std::vector<std::string> lines;   //vector containing all the usefull lines
 
-  std::ifstream in(fname.c_str());   //open the file
-  while(!in.eof()){   //loop untill the end of the file is reached
-    getline(in, str);  //read a line
+  std::ifstream in(fname.c_str(), std::ifstream::in);   //open the file
+  if(!in.is_open()){
+    std::cerr << "Could not open file " << fname << std::endl;
+    exit(70);
+  }
+  while(getline(in, str)){   //loop untill no new lines available
     
     if( str.empty() == true ) continue;  //if the line is empty, go to the next line
     else if( str.compare(str.find_first_not_of(" \t"), 1, this->comment) == 0 )  //if the first non empty 
@@ -40,6 +56,21 @@ std::vector<std::string> ParseIni::readlines(std::string fname){
 /*==========================================================================
  * PUBLIC FUNCTIONS
  *==========================================================================*/
+
+/*==========================================================================
+ * standard error when retreaving a value from a inifile
+ * parameters
+ * ----------
+ *  param: string
+ *    name of the searched parameter
+ *  error: int
+ *    error code to give to exit
+ *==========================================================================*/
+void ParseIni::ini_error(std::string param, int error){
+  std::cerr << param << " keyword not found or empty in the inifile ";
+  std::cerr << get_fname() << std::endl;
+  exit(error);
+}
 
 /*==========================================================================
  * Read a single parameter following a given string and '='
@@ -81,6 +112,30 @@ int ParseIni::get_param(std::string parname, std::string *value){
     }
   }
   return(error);
+}
+int ParseIni::get_param(std::string parname, int *value){
+  std::string str;   //string that will contain the int
+  int err = get_param(parname, &str); //read the parameter
+  int err_conversion;  //erro in the conversion from string to int
+  *value = common::to_number<int>(str, &err_conversion);
+  if(err_conversion!=0) err = -2;
+  return(err);
+}
+int ParseIni::get_param(std::string parname, size_t *value){
+  std::string str;   //string that will contain the int
+  int err = get_param(parname, &str); //read the parameter
+  int err_conversion;  //erro in the conversion from string to int
+  *value = common::to_number<size_t>(str, &err_conversion);
+  if(err_conversion!=0) err = -2;
+  return(err);
+}
+int ParseIni::get_param(std::string parname, double *value){
+  std::string str;   //string that will contain the int
+  int err = get_param(parname, &str); //read the parameter
+  int err_conversion;  //erro in the conversion from string to int
+  *value = common::to_number<double>(str, &err_conversion);
+  if(err_conversion!=0) err = -2;
+  return(err);
 }
 int ParseIni::get_param(std::string parname, bool *value){
   std::string strbool;   //string that will contain the boolean
@@ -147,6 +202,45 @@ int ParseIni::get_param_list(std::string parname, size_t n,
     }
   }
   return(error);
+}
+int ParseIni::get_param_list(std::string parname, size_t n, std::vector<int> &values){
+  std::vector<std::string> vstr;   //string that will contain the int
+  int err = get_param_list(parname, n, vstr); //read the parameter
+  for(size_t i=0; i<vstr.size(); ++i){
+    int err_conversion;  //erro in the conversion from string to int
+    values.push_back(common::to_number<int>(vstr[i], &err_conversion));
+    if(err_conversion!=0){
+      err = -2;
+      break;
+    }
+  }
+  return(err);
+}
+int ParseIni::get_param_list(std::string parname, size_t n, std::vector<size_t> &values){
+  std::vector<std::string> vstr;   //string that will contain the int
+  int err = get_param_list(parname, n, vstr); //read the parameter
+  for(size_t i=0; i<vstr.size(); ++i){
+    int err_conversion;  //erro in the conversion from string to int
+    values.push_back(common::to_number<size_t>(vstr[i], &err_conversion));
+    if(err_conversion!=0){
+      err = -2;
+      break;
+    }
+  }
+  return(err);
+}
+int ParseIni::get_param_list(std::string parname, size_t n, std::vector<double> &values){
+  std::vector<std::string> vstr;   //string that will contain the int
+  int err = get_param_list(parname, n, vstr); //read the parameter
+  for(size_t i=0; i<vstr.size(); ++i){
+    int err_conversion;  //erro in the conversion from string to int
+    values.push_back(common::to_number<double>(vstr[i], &err_conversion));
+    if(err_conversion!=0){
+      err = -2;
+      break;
+    }
+  }
+  return(err);
 }
 /*==========================================================================
  * Read MCMC paramter starting guess, boundaries and sigma

@@ -24,9 +24,13 @@ gsl_vector *gslf::read_gsl_vector(std::string file_name, int dim){
   // create a gsl vector and read in the whole file
   gsl_vector *vector = gsl_vector_alloc(dim);
   FILE *f = fopen(file_name.c_str(), "r");   //file unit
+  if(f == NULL){
+    std::cerr << "Error opening file " << file_name << std::endl;
+    exit(80);
+  }
   if(gsl_vector_fscanf(f, vector) !=0){
     std::cerr << "The vector in file  " <<file_name << " can't be read." << std::endl;
-    exit(50);
+    exit(81);
   }
   fclose(f);
 
@@ -81,9 +85,24 @@ gsl_matrix *gslf::read_gsl_matrix(std::string file_name, int xdim, int
   // create a gsl matrix and read in the whole file
   gsl_matrix *matrix = gsl_matrix_alloc(xdim, ydim); 
   FILE *f = fopen(file_name.c_str(), "r");   //file unit
+  if(f == NULL){
+    std::cerr << "Error opening file " << file_name << std::endl;
+    exit(82);
+  }
+  while(true){
+    uchar8 c = fgetc(f);
+    if(c == '#'){
+      do{
+        uchar8 ci = fgetc(in);
+      }while (ci != '\n')
+    }
+    else break;
+  }
+
+
   if(gsl_matrix_fscanf(f, matrix) !=0){
     std::cerr << "The matrix in file  " <<file_name << " can't be read." << std::endl;
-    exit(51);
+    exit(83);
   }
   fclose(f);
 
@@ -142,9 +161,12 @@ gsl_spline *gslf::read_2_spline(std::string fname){
   y.push_back(0);   //and shouldn't influence the output 
   
   std::ifstream in(fname.c_str(), std::ifstream::in);   //open the file object
-  while(!in.eof()){
-    double xi, yi; //temporary columns
-    in >> xi >> yi;
+  if(!in.is_open()){
+    std::cerr << "Could not open file " << fname << std::endl;
+    exit(84);
+  }
+  double xi, yi; //temporary columns
+  while(in >> xi >> yi){
     x.push_back(xi);
     y.push_back(yi);
   }
@@ -157,7 +179,7 @@ gsl_spline *gslf::read_2_spline(std::string fname){
   if(gsl_spline_init(spl, &x[0], &y[0], x.size()) !=0){
     std::cerr << "Initialization of the spline " << gsl_spline_name(spl);
     std::cerr << " for the data in file " << fname << " failed" << std::endl;
-    exit(52);
+    exit(85);
   }
   x.clear();
   y.clear();

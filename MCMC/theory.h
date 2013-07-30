@@ -56,14 +56,7 @@ class Theory{
      * Destructor
      * deallocate stuff
      *==========================================================================*/
-    ~Theory(){
-      //free splines
-      gsl_spline_free(spllin);
-      gsl_spline_free(spl1l);
-      //free the interpolation accelerators
-      gsl_interp_accel_free(acclin);
-      gsl_interp_accel_free(acc1l);
-    };
+    ~Theory();
 
     /*==========================================================================
      * return the long and short names of the variables

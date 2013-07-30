@@ -3,10 +3,11 @@
  * between all the files of the mcmc
  *==========================================================================*/
 
+#pragma once
+
+#include <fstream>
 #include <sstream>
 #include <string>
-
-#pragma once
 
 namespace common{
 
@@ -35,15 +36,15 @@ namespace common{
     return sstr.str();
   }
   /*==========================================================================
-   * Convert string 'str' to number. Templatized, so accept all standard types     
-   * Parameters
+   * convert string 'str' to number. templatized, so accept all standard types     
+   * parameters
    * ----------
    *  str: string to convert
    *  err: int
    *    0 if conversion worked, >=1 if failed
    * output
    * ------
-   *  result: T
+   *  result: t
    *==========================================================================*/
   template <typename T>  //set template name
   T to_number(std::string const& str, int *err) {
@@ -54,4 +55,29 @@ namespace common{
       *err =1;
     return(result);
   }
+
+  /*==========================================================================
+   * Check if file exists
+   * Parameters
+   * ----------
+   * fname: string
+   *   file name to check
+   * output
+   * ------
+   * fileexists: bool
+   *   true if the file exists, false otherwise
+   *==========================================================================*/
+  //#ifdef MAIN_CPP
+  inline bool fileexists(std::string fname)
+  {
+    std::ifstream check(fname.c_str(), std::ifstream::in);
+    if (check.is_open()){
+      check.close();
+      return(true);
+    }
+    else return(false);
+  }
+
 }
+
+

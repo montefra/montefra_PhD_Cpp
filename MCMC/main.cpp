@@ -28,10 +28,8 @@ int main(int argc, char* argv[])
   Theory theory(ini_file);
 
   int n_datasets; //number of datasets
-  if(ini_file.get_param("n_datasets", &n_datasets) != 0){
-    std::cerr << "'n_datasets' is not in the inifile" << std::endl;
-    exit(2);
-  }
+  if(ini_file.get_param("n_datasets", &n_datasets) != 0)
+    ini_file.ini_error("n_datasets", 2);
   if(common::verbose) 
     std::cout << "Reading " << n_datasets << " datasets" << std::endl;
 

@@ -42,12 +42,7 @@ class MCMC{
     /*==========================================================================
      * initialiase the random generators
      *==========================================================================*/
-    void init_random(){
-      r = gsl_rng_alloc(gsl_rng_taus2);
-      rg = gsl_rng_alloc(gsl_rng_taus2);
-      gsl_rng_set(r, time(NULL));
-      gsl_rng_set(rg, time(NULL)+1);
-    }
+    void init_random();
 
     /*==========================================================================
      * retrieve the parameter names from the likelihoods
@@ -70,12 +65,7 @@ class MCMC{
     /*==========================================================================
      * initialise the parameter names (mostly call the three above functions)
      *==========================================================================*/
-    void initialise_paramnames(ParseIni &ini){
-      get_paramnames();
-      save_paramnames();
-      long_names.clear();  //clear the long names
-      read_params(ini);  //get the paramnames limits and steps from the inifile
-    }
+    void initialise_paramnames(ParseIni &ini);
 
     /*==========================================================================
      * randomly generate a new set of parameters

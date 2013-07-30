@@ -24,9 +24,15 @@ MCMC::MCMC(std::vector<Likelihood> &likes, ParseIni &ini){
   n_likes=likes.size();
 
   //read the file root
-  if(ini.get_param("file_root", &file_root)!=0) exit(70);
+  if(ini.get_param("file_root", &file_root)!=0)
+    ini.ini_error("file_root", 60);
   //read the number of steps of the chain
-  if(ini.get_param("n_steps", &n_steps)!=0) exit(71);
+  if(ini.get_param("n_steps", &n_steps)!=0){
+    size_t def_n_step = 300000;
+    std::cerr << "n_steps not found of found empty in the inifile ";
+    std::cerr << ini.get_fname() << ". Defaulting to " << def_n_step << std::endl;
+    n_steps = def_n_step;
+  }
 
   init_random();
   //get the paramnames from the likelihoods
@@ -34,6 +40,15 @@ MCMC::MCMC(std::vector<Likelihood> &likes, ParseIni &ini){
   initialise_paramnames(ini);
 }
 
+/*==========================================================================
+ * initialiase the random generators
+ *==========================================================================*/
+void MCMC::init_random(){
+  r = gsl_rng_alloc(gsl_rng_taus2);
+  rg = gsl_rng_alloc(gsl_rng_taus2);
+  gsl_rng_set(r, time(NULL));
+  gsl_rng_set(rg, time(NULL)+1);
+}
 
 /*=========================================================================a
  * retrieve the parameter names from the likelihoods
@@ -64,7 +79,17 @@ void MCMC::get_paramnames(){
  *==========================================================================*/
 void MCMC::save_paramnames(){
   std::string ofile = file_root+".paramnames";
+  if(common::fileexists(ofile)){
+    std::cerr << "File " << ofile << " already exists";
+    std::cerr << "Delete, move or rename it" << std::endl;
+    exit(61);
+  }
+
   std::ofstream out(ofile.c_str());
+  if(!out.is_open()){
+    std::cerr << "Failed to open output file " << ofile << std::endl;
+    exit(62);
+  }
   for(size_t i=0; i<n_parameters; ++i) 
     out << paramnames[i] << "\t" << long_names[i] << std::endl;
   out.close();
@@ -82,11 +107,8 @@ void MCMC::read_params(ParseIni &ini){
   //read the parameter limits one by one and save into the maps
   std::vector<std::string>::iterator it;
   for(it = paramnames.begin(); it != paramnames.end(); ++it){
-    if(ini.get_mcmc_params(*it, &tstart, &tmin, &tmax, &tstep)!=0){
-      std::cerr << "Parameter " << *it;
-      std::cerr << " not found or incomplete" << std::endl;
-      exit(75);
-    }
+    if(ini.get_mcmc_params(*it, &tstart, &tmin, &tmax, &tstep)!=0)
+      ini.ini_error(*it, 63);
     //if the parameters is to be changed (step size >0), start at a random point into the
     //allowed parameter range
     if(tstep > 0.) tstart = tmin + (tmax-tmin)*gsl_rng_uniform(rg); 
@@ -98,12 +120,32 @@ void MCMC::read_params(ParseIni &ini){
 }
 
 /*==========================================================================
+ * initialise the parameter names (mostly call the three above functions)
+ *==========================================================================*/
+void MCMC::initialise_paramnames(ParseIni &ini){
+  get_paramnames();
+  save_paramnames();
+  long_names.clear();  //clear the long names
+  read_params(ini);  //get the paramnames limits and steps from the inifile
+}
+
+/*==========================================================================
  * run the mcmc chain
  *==========================================================================*/
 void MCMC::run(){
   //open the output file
   std::string ofile = file_root+".txt";
+  if(common::fileexists(ofile)){
+    std::cerr << "File " << ofile << " already exists";
+    std::cerr << "Delete, move or rename it" << std::endl;
+    exit(64);
+  }
+
   std::ofstream out(ofile.c_str());
+  if(!out.is_open()){
+    std::cerr << "Failed to open output file " << ofile << std::endl;
+    exit(65);
+  }
   out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
