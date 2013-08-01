@@ -55,10 +55,37 @@ void Likelihood::retrieve_paramnames(){
   paramnames = theory->get_paramnames();
   long_names = theory->get_long_names();
 
-  for(size_t i=0; i<paramnames.size(); ++i){
-    std::string temp = paramnames[i]+common::to_string(dataset); //add the dataset number
-    mcmc2theory[paramnames[i]] = temp;  //add the element to the map
-    paramnames[i] = temp;  //save the new paramname into the vector
+  //if same_alpha==true all likelihoods are computed using the same alpha
+  //if same_params==true all likelihoods are computed using the same parameters 
+  bool same_alpha, same_params;
+  if(ini->get_param("same_alpha", &same_alpha) != 0)
+    same_alpha = false;
+  if(ini->get_param("same_params", &same_params) != 0)
+    same_params = false;
+
+  int tdataset=dataset;  //local dataset number
+  if(same_params) tdataset = 1;  //use 1 for every likelihood
+
+  std::vector<std::string>::iterator it;
+  std::string temp;
+
+  if(same_alpha){  //look for the value called alpha and use dataset=1 only for that
+    for(it=paramnames.begin(); it!=paramnames.end(); ++it){
+      //add the dataset number
+      if((*it).compare("alpha")==0)
+        temp = *it+"1";
+      else
+        temp = *it+common::to_string(tdataset); 
+      mcmc2theory[*it] = temp;  //add the element to the map
+      *it = temp;  //save the new paramname into the vector
+    }
+  }
+  else{
+    for(it=paramnames.begin(); it!=paramnames.end(); ++it){
+      temp = *it+common::to_string(tdataset); 
+      mcmc2theory[*it] = temp;  //add the element to the map
+      *it = temp;  //save the new paramname into the vector
+    }
   }
 }
 
