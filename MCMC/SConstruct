@@ -29,7 +29,6 @@ libs=['gsl', 'gslcblas', 'm']
 linkflags = ccflags[:]
 
 #CPPPATH: if given the files included are scanned for new versions and if necessary the object recreated
-#
 
 Program(target='mcmc.exe', source=listcpp, LIBS=libs, CCFLAGS=ccflags, LINKFLAGS=linkflags, CPPPATH = '.')
 

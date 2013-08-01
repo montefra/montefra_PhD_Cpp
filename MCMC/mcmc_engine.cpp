@@ -153,23 +153,25 @@ void MCMC::run(){
   out.width(9);
 
   //likelihoods
-  double like1=1., like2=1.;
+  double chi21, chi22;
   size_t weights=0; //number of times the chains stays in one point
   //compute the likelihood at the starting point
   std::map<std::string, double> params1(start);
-  for(size_t i=0; i<n_likes; ++i) like1 *= likes[i].get_like(params1);
+  chi21=0.; 
+  for(size_t i=0; i<n_likes; ++i) chi21 = likes[i].get_chi2(params1);
   weights=1;
 
   for(size_t j=1; j<n_steps; ++j){ //loop over the mcmc steps
     std::map<std::string, double> params2 = new_parameters(params1);
-    for(size_t i=0; i<n_likes; ++i) like2 *= likes[i].get_like(params2);
+    chi22=0.;
+    for(size_t i=0; i<n_likes; ++i) chi22 += likes[i].get_chi2(params2);
 
     //criteria to accept the new likelihood: eitheir is larger or the 
     //new-old ratio is larger than a random number. In this case print
     //the old weight, likelihood and parameters, set the weights to 1 
     //and save params2 and like2 into params1 and like1
-    if(like1 < like2 || like1/like2 > gsl_rng_uniform(r)){
-      out << weights << "\t" << like1;
+    if(chi21 > chi22 || exp(0.5*(chi21-chi22)) > gsl_rng_uniform(r)){
+      out << weights << "\t" << chi21;
       //loop over the paramnames vector to make sure that the parameters are
       //printed always in the same order
       for(std::vector<std::string>::iterator it=paramnames.begin();
@@ -179,7 +181,7 @@ void MCMC::run(){
       }
       out << std::endl;
       weights = 1;
-      like1 = like2;
+      chi21 = chi22;
     }
     else ++weights;
 
@@ -190,7 +192,7 @@ void MCMC::run(){
   //if weights larger than one, means that the last set of parameter of the
   //chain has not been saved to file
   if(weights>1){
-    out << weights << "\t" << like1;
+    out << weights << "\t" << chi21;
     //loop over the paramnames vector to make sure that the parameters are
     //printed always in the same order
     for(std::vector<std::string>::iterator it=paramnames.begin();

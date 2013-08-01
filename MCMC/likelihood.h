@@ -74,6 +74,6 @@ class Likelihood{
      *  params: map
      *    map with parameter name as key and its value as value
      *==========================================================================*/
-    double get_like(std::map<std::string, double> params);
+    double get_chi2(std::map<std::string, double> params);
 
 };
