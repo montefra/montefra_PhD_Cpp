@@ -91,6 +91,6 @@ double Theory::get_model(double k, std::map<std::string, double> params){
   pk += params["amc"] * gsl_spline_eval(spl1l, ak, acc1l);
   pk *= pow(params["bias"], 2);  // *bias^2
   pk += params["noise"];   //add noise
-  pk /= pow(params["alpha"], 3)  // /alpha^3: so not absorbed into bias and noise
+  pk /= pow(params["alpha"], 3);  // /alpha^3: so not absorbed into bias and noise
   return(pk);                     
 }
