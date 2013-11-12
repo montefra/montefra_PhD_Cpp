@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include<cmath>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -64,6 +65,14 @@ class Dataset{
      *  ini: inifile
      *==========================================================================*/
     void read_invert_cov(ParseIni ini);
+    /*==========================================================================
+     * Unbias the inverse covariance
+     * Parameter
+     * ---------
+     *  ini: inifile
+     *==========================================================================*/
+    void unbias_inverse_cov(ParseIni ini);
+
     /*==========================================================================
      * read the files for the window matrix
      * Parameter

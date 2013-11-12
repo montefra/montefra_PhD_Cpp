@@ -142,28 +142,40 @@ void Dataset::read_invert_cov(ParseIni ini){
   }
   gsl_permutation_free(p);
   gsl_matrix_free(temp_cov);   //free the memory of the temporary matrix
-
+}
+/*==========================================================================
+ * Unbias the inverse covariance
+ * Parameter
+ * ---------
+ *  ini: inifile
+ *==========================================================================*/
+void Dataset::unbias_inverse_cov(ParseIni ini){
   // unbias the inverse covariance matrix as in Hartlap et al. 2007 
-  // multiplying it my (n_mocks-n_bins-2)/(n_mock-1)
+  // multiplying it my 1-D = 1 - (n_bins+1)/(n_mocks-1)
+  // If a correlation 'r_mocks' is given and positive, D is multiplied by
+  // (1+r_mocks^2)/2 according to Percival et al 2013
+
   int n_mocks;  //number of mocks used to estimate che covariance matrix
-  if(ini.get_param("n_mocks", &n_mocks) == 0){
-    // if n-p-2<0 it's not possible to unbias the inverse
-    if(n_mocks < n_bins.kiuse+2){
-      std::cerr << "The covariance matrix is singular and should not be ";
-      std::cerr << "possible to invert it" << std::endl;
-      exit(40);
-    }
-    else{
-      if(gsl_matrix_scale(invcov, (n_mocks-n_bins.kiuse-2.)/(n_mocks-1.)) != 0){
-        std::cerr << "Error multiplying the inverse covariance matrix to unbias it";
-        std::cerr << std::endl;
-        exit(41);
-      }
+  double r_mocks;   //correlation between mocks
+  int err_n_mocks, err_r_mocks;  //errors where reading the inifile
+
+  // read the number of mocks and correlation
+  err_n_mocks = ini.get_param("n_mocks", &n_mocks);
+  err_r_mocks = ini.get_param("r_mocks", &r_mocks);
+
+  if(err_r_mocks==0 && n_mocks>n_bins.kiuse+2){
+    double D = (n_bins.kiuse + 1.)/(n_mocks-1.);
+    if(err_r_mocks==0 || r_mocks>0) // if the correlation is given and positive
+      D *= (1.+pow(r_mocks, 2))/2.;
+    if(gsl_matrix_scale(invcov, D) != 0){
+      std::cerr << "Error multiplying the inverse covariance matrix to unbias it";
+      std::cerr << std::endl;
+      exit(41);
     }
   }
   else{
-    std::cerr << "The number of mocks has not been provided. ";
-    std::cerr << "The inverse covariance matrix is biased." << std::endl;
+    std::cerr << "The number of mocks has not been provided or is not invertible";
+    std::cerr << "The inverse covariance matrix is biased if computed from simulations." << std::endl;
   }
 }
 
