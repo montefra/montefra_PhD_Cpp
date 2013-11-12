@@ -142,6 +142,9 @@ void Dataset::read_invert_cov(ParseIni ini){
   }
   gsl_permutation_free(p);
   gsl_matrix_free(temp_cov);   //free the memory of the temporary matrix
+
+  // unbias inverse covariance matrix
+  unbias_inverse_cov(ini); 
 }
 /*==========================================================================
  * Unbias the inverse covariance
@@ -165,9 +168,9 @@ void Dataset::unbias_inverse_cov(ParseIni ini){
 
   if(err_r_mocks==0 && n_mocks>n_bins.kiuse+2){
     double D = (n_bins.kiuse + 1.)/(n_mocks-1.);
-    if(err_r_mocks==0 || r_mocks>0) // if the correlation is given and positive
+    if(err_r_mocks==0 && r_mocks>0) // if the correlation is given and positive
       D *= (1.+pow(r_mocks, 2))/2.;
-    if(gsl_matrix_scale(invcov, D) != 0){
+    if(gsl_matrix_scale(invcov, 1.-D) != 0){
       std::cerr << "Error multiplying the inverse covariance matrix to unbias it";
       std::cerr << std::endl;
       exit(41);
