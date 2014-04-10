@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
   }
   if(common::verbose){
     std::cout << "Datasets read and likelihoods initialized" << std::endl;
-    std::cout << std::endl << "Start the mcmc chain" << std::endl;
+    std::cout << "Start the mcmc chain" << std::endl;
   }
 
   //initialise mcmc engine creating the parameter names and reading the

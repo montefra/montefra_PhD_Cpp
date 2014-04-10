@@ -138,7 +138,7 @@ void MCMC::run(){
   //open the output file
   std::string ofile = file_root+".txt";
   if(common::fileexists(ofile)){
-    std::cerr << "File " << ofile << " already exists";
+    std::cerr << "File '" << ofile << "' already exists. ";
     std::cerr << "Delete, move or rename it" << std::endl;
     exit(64);
   }
@@ -166,7 +166,7 @@ void MCMC::run(){
     chi22=0.;
     for(size_t i=0; i<n_likes; ++i) chi22 += likes[i].get_chi2(params2);
 
-    //criteria to accept the new likelihood: eitheir is larger or the 
+    //criteria to accept the new likelihood: either is larger or the 
     //new-old ratio is larger than a random number. In this case print
     //the old weight, likelihood and parameters, set the weights to 1 
     //and save params2 and like2 into params1 and like1
