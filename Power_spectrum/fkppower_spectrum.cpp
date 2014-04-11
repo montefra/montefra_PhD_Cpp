@@ -234,7 +234,13 @@ int main(int argc, char* argv[])
           vignorew, repeatw.getValue());
       sumsran1 = rf.read_file(vinfiles[1], *gridran, vzrange,
           vignore_randoms, false);
-      if(ninfiles == 4){  //read the second catalogue and random
+      if(ninfiles == 2){
+          //compute alpha inverse normalisation and shot noise (this is done anyway)
+          alpha_N_sh(sumscat1, sumsran1, &alpha1, &N2_1, &noise1);
+          //convert the galaxy and random density fields into F(r)
+          grid1->to_Fr(*gridran, alpha1, sqrt(N2_1));
+      }
+      else if(ninfiles == 4){  //read the second catalogue and random
         if(twogrids.getValue() || cross.getValue()){  //if two grids are wanted 
           //compute alpha, inverse normalisation and shot noise
           alpha_N_sh(sumscat1, sumsran1, &alpha1, &N2_1, &noise1);
