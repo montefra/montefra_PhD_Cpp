@@ -8,7 +8,13 @@
 /*                                                                          */
 /*==========================================================================*/
 
-#include "/data01/montefra/Common_code/com_included_pack.h"
+#include<cstring>
+#include<fstream>
+#include<iostream>
+#include<sstream>
+#include<string>
+#include<vector>
+
 #include "gsl/gsl_errno.h"
 #include "gsl/gsl_integration.h"
 #include "gsl/gsl_spline.h"
@@ -32,9 +38,9 @@ struct par{  // structure containing the parameters for the integration
 
 /* function declaration */
 void help(char name[], int bins, int gf);        // help function
-void ofilenames(string *ofiles);   //build the output file names
-int check_file(string file_name);
-int input_data(string input_file, vector<in_data> &indata, double kmin, double kmax);  // read the input file and give back a vector
+void ofilenames(std::string *ofiles);   //build the output file names
+int check_file(std::string file_name);
+int input_data(std::string input_file, std::vector<in_data> &indata, double kmin, double kmax);  // read the input file and give back a vector
 void gauleg(double x1, double x2, double x[], double w[], int n);  // Numerical recipes: Gauss-Legendre n-point quadrature formula
 void gaussfit(double *x, double *y, double *gf);  //gaussian fit
 double func(double t, void *params);    //function to integrate
@@ -47,9 +53,9 @@ double func(double t, void *params);    //function to integrate
 int main(int argc, char* argv[])
 {
   int i, j;   //loop integers
-  string input[2];    //file with the window function and with the value of k in wich it will computed
-  string *output;   //file of the window function and of the value of k where to perform the internal sum
-  vector<in_data> ks;   //vector containing (temporarly) the spherical averaged window function and the values of k where to evaluate the l.h.s. of the power spectrum
+  std::string input[2];    //file with the window function and with the value of k in wich it will computed
+  std::string *output;   //file of the window function and of the value of k where to perform the internal sum
+  std::vector<in_data> ks;   //vector containing (temporarly) the spherical averaged window function and the values of k where to evaluate the l.h.s. of the power spectrum
   in_data temp;  //temporary structure
   int dimwin, dimks;   // dimension of the above vectors
   double *k, *G;     //save winndow to two arrays for the win for the spline
@@ -59,7 +65,10 @@ int main(int argc, char* argv[])
   int gf = 10.;  //if positive enable gaussian fit
   double kjmin=-1, kjmax=-1;  // minimum and maximum values for the values of kj: if negative the minimum and maximum values from the window function used
   double kimin=-1, kimax=-1;  // minimum and maximum values for the values of ki from the "input[1]" file: if negative whole range
-  double kwmin=-1, kwmax=-1;  // minimum and maximum values for the values of k for the window function and integration limits: if negative whole range considered. If kwmin negative gaussian fit done to the first bins of the window function to get G^2(0)
+  // minimum and maximum values for the values of k for the window function and
+  // integration limits: if negative whole range considered. If kwmin negative
+  // gaussian fit done to the first bins of the window function to get G^2(0)
+  double kwmin=-1, kwmax=-1;
   double *kj, *w;   //values of kj and corresponding weights as given from gauled
   double **Wij;   //matrix representation of the window function |G(k)|^2
   double N=0.;  //normalization of each line of the window matrix
@@ -68,29 +77,29 @@ int main(int argc, char* argv[])
   gsl_integration_workspace *ws;  // gsl integration workspace
   int wssize = 10000;    // size of gsl integration workspace
   double result, abserr;   // result and error from the numerical integration
-  ofstream out;   //output output stream to file
+  std::ofstream out;   //output output stream to file
   
   gsl_error_handler_t * gsl_set_error_handler_off();
 
   if(argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) ) help(argv[0], N_kj, gf);
 
   if(argc < 4){
-    cout << "At least the input, output file prefix needed" << endl;
-    cout << "For more information type '" << argv[0] << " --help'" << endl;
+    std::cout << "At least the input, output file prefix needed" << std::endl;
+    std::cout << "For more information type '" << argv[0] << " --help'" << std::endl;
     exit(1);
   }
-  output = new string[n_outfiles];
+  output = new std::string[n_outfiles];
 
   for(i=0; i<2; ++i) input[i] = argv[i+1];  // get input file names
   output[0] = argv[3];  // get output file prefix
   ofilenames(output);   //construct output file names
   
   for(i=0; i<2; ++i) if(check_file(input[i]) == 0){
-      cout << "Input file " << input[i] << " doesn't exist."  << endl;
+      std::cout << "Input file " << input[i] << " doesn't exist."  << std::endl;
       exit(2);
     }
   for(i=0; i<4; ++i) if(check_file(output[i]) == 1){
-      cout << "Output file " << output[i] << " already exists."  << endl;
+      std::cout << "Output file " << output[i] << " already exists."  << std::endl;
       exit(3);
     }
 
@@ -160,14 +169,14 @@ int main(int argc, char* argv[])
   /* create a spline of the |G(k)|^2 */
   pars.spl = gsl_spline_alloc(gsl_interp_cspline, dimwin);
   if(gsl_spline_init(pars.spl, k, G, dimwin)){
-    cerr << "Error in the initialization of the interpolation routine with the '" << gsl_spline_name(pars.spl) << "' interpolation scheme" << endl;
+    std::cerr << "Error in the initialization of the interpolation routine with the '" << 
+      gsl_spline_name(pars.spl) << "' interpolation scheme" << std::endl;
     exit(11);
   }
   pars.acc = gsl_interp_accel_alloc();
 
   ws = gsl_integration_workspace_alloc(wssize);  // allocate the gsl workspace
 
-  double integr;
   /* compute Wi_{j} */
   for(i=0; i<dimks; ++i){
     pars.ki = ks[i].x;   //save ki for the integration
@@ -177,11 +186,9 @@ int main(int argc, char* argv[])
       f.function = &func;   // associate the function
       f.params = &pars;  //associate the parameters
 
-      //integr = gsl_integration_qag(&f, -1., 1, 1.e-4, 1.e-4, wssize, 4, ws, &result, &abserr);
-
       if(gsl_integration_qag(&f, -1., 1, 0., 8.e-3, wssize, 3, ws, &result, &abserr)){
-      //if(integr != 0){
-        cerr << "error with the integration at the loop " << i << ", " << j << ", corresponding to ki=" << ks[i].x << " and kj=" << kj[j] << endl;
+        std::cerr << "error with the integration at the loop " << i << ", " << j <<
+          ", corresponding to ki=" << ks[i].x << " and kj=" << kj[j] << std::endl;
 	exit(12);
       }
 
@@ -195,37 +202,37 @@ int main(int argc, char* argv[])
 
   /* print the output files  */
   out.open(output[0].c_str());  //file with the window function Wij i!=0
-  out.setf(ios_base::scientific);
+  out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
   for(i=1; i<dimks; ++i){
     for(j=0; j<abs(N_kj); ++j) out << Wij[i][j] << "\t";
-    out << endl;
+    out << std::endl;
   }
   out.close();
 
   out.open(output[1].c_str());  //file with the kj
-  out.setf(ios_base::scientific);
+  out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
-  for(i=0; i<abs(N_kj); ++i) out << kj[i] << endl;
+  for(i=0; i<abs(N_kj); ++i) out << kj[i] << std::endl;
   out.close();
 
   out.open(output[2].c_str());  //file with the W0j
-  out.setf(ios_base::scientific);
+  out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
-  for(i=0; i<abs(N_kj); ++i) out << Wij[0][i] << endl;
+  for(i=0; i<abs(N_kj); ++i) out << Wij[0][i] << std::endl;
   out.close();
   
   out.open(output[3].c_str());  //file with the G^2([0,ki])
-  out.setf(ios_base::scientific);
+  out.setf(std::ios_base::scientific);
   out.precision(6);
   out.width(9);
   pars.kj = 0.;   //save kj for the integration
   for(i=0; i<dimks; ++i){
     pars.ki = ks[i].x;   //save ki for the integration
-    out << func(0., &pars) << endl;
+    out << func(0., &pars) << std::endl;
   }
   out.close();
 
@@ -241,13 +248,13 @@ int main(int argc, char* argv[])
 /*                               FUNCTIONS                                  */
 /*==========================================================================*/
 
-void ofilenames(string *ofiles)
+void ofilenames(std::string *ofiles)
 /* Given the output file name prefix in ofiles[0] returns the output file names. 
 The array of strings must be already allocated with the right number of elements.*/
 {
   int i;  //loop integers
-  ostringstream s1;    // string stream to build the input linear and 1loop PS file name
-  string ends[] = {".Wij.dat", ".kj.dat", ".W0j.dat", ".G20i.dat"};
+  std::ostringstream s1;    // string stream to build the input linear and 1loop PS file name
+  std::string ends[] = {".Wij.dat", ".kj.dat", ".W0j.dat", ".G20i.dat"};
 
   for(i=n_outfiles-1; i>=0; --i){
     s1 << ofiles[0] << ends[i];   //create the file name
@@ -257,11 +264,11 @@ The array of strings must be already allocated with the right number of elements
 }
 
 /*==========================================================================*/
-int check_file(string file_name)
+int check_file(std::string file_name)
 /* Input: name of the file to be checked
    Output: 0 if the file doesn't exists; 1 if it exists*/
 {
-  ifstream check(file_name.c_str());
+  std::ifstream check(file_name.c_str());
   if (check.is_open())
   {
     check.close();
@@ -271,20 +278,25 @@ int check_file(string file_name)
 }
 
 /*==========================================================================*/
-int input_data(string input_file, vector<in_data> &indata, double kmin, double kmax)
+int input_data(std::string input_file, std::vector<in_data> &indata, double kmin, double kmax)
 /* get the file name input_file, return a vector of structure in_data
-only the first two out of three columns are read*/
+only the first two out of four columns are read*/
 {
   in_data read;
   double dummy;
 
-  ifstream in(input_file.c_str());
-  for(;;){
-    in >> read.x >> read.y >> dummy;
-    if (in.eof() == true) break;
-    else if(kmin>=0. && read.x<kmin) continue;  //if k < kmin skip 
+  std::ifstream in(input_file.c_str());
+  std::string line;   //string containing the line
+  while(getline(in, line)){   //read a line of the input file
+    if(line.find("#") == 0)  //if in the line there is a '#' skip the line (it's likely a comment)
+      continue;
+
+    //save the content of the line to the structure
+    std::stringstream(line) >> read.x >> read.y >> dummy >> dummy;
+
+    if(read.x<kmin) continue;  //if k < kmin skip 
     else if(kmax>=0. && read.x > kmax) break;   //if k > kmax stop reading
-    else indata.push_back(read);
+    indata.push_back(read);
   }
   in.close();
 
@@ -349,7 +361,7 @@ the amplitud A=gf[1], the mean mu=gf[2] and the stddev sigma=gf[3]*/
   }
 
   if(gsl_multifit_linear(X, ly, c, cov, &chisq, w)){
-    cerr << "Polinomial fit failed" << endl;
+    std::cerr << "Polinomial fit failed" << std::endl;
     exit(30);
   }
 
@@ -376,7 +388,7 @@ double func(double t, void *params)
 
   if(kk>=pars.kmin && kk<=pars.kmax){
     if(gsl_spline_eval_e(pars.spl, kk, pars.acc, &y)){
-      cerr << "Error to spline the function |G(k)|^2 in k="<< kk << endl;
+      std::cerr << "Error to spline the function |G(k)|^2 in k="<< kk << std::endl;
       exit(20);
     }
   }
@@ -391,34 +403,34 @@ double func(double t, void *params)
 
 void help(char name[], int bins, int gf)
 {
-  cout << endl;
-  cout << "/*==========================================================================*/" << endl;
-  cout << "/* Version: 1.20           date:07/10/10                                    */" << endl;
-  cout << "/*                                                                          */" << endl;
-  cout << "/* Author: Francesco Montesano, MPE, Garching                               */" << endl;
-  cout << "/*                                                                          */" << endl;
-  cout << "/* Purpose: given a sferical averaged window function in k-space |G(k)|^2   */" << endl;
-  cout << "/* computes the matrix version of it W_{ij}:                                */" << endl;
-  cout << "/* P_m(ki) = sum_{ij} P(kj) W_{ij} + c |G(ki)|^2                            */" << endl;
-  cout << "/*==========================================================================*/" << endl;
-  cout << endl << endl;
+  std::cout << std::endl;
+  std::cout << "/*==========================================================================*/" << std::endl;
+  std::cout << "/* Version: 1.20           date:07/10/10                                    */" << std::endl;
+  std::cout << "/*                                                                          */" << std::endl;
+  std::cout << "/* Author: Francesco Montesano, MPE, Garching                               */" << std::endl;
+  std::cout << "/*                                                                          */" << std::endl;
+  std::cout << "/* Purpose: given a sferical averaged window function in k-space |G(k)|^2   */" << std::endl;
+  std::cout << "/* computes the matrix version of it W_{ij}:                                */" << std::endl;
+  std::cout << "/* P_m(ki) = sum_{ij} P(kj) W_{ij} + c |G(ki)|^2                            */" << std::endl;
+  std::cout << "/*==========================================================================*/" << std::endl;
+  std::cout << std::endl << std::endl;
 
-  cout << "This program reads the spherical averaged window function and a list of ki values" << endl;
-  cout << "and prints the window matrix, the values of kj, of W(0,kj) and of |G([0,ki])|^2" << endl;
-  cout << "Usage" << endl;
-  cout << name << " win_infile ki_infile outfile_prefix (N_kj gf kjmin kjmax kimin kimax kwmin kwmax)" << endl << endl;
+  std::cout << "This program reads the spherical averaged window function and a list of ki values" << std::endl;
+  std::cout << "and prints the window matrix, the values of kj, of W(0,kj) and of |G([0,ki])|^2" << std::endl;
+  std::cout << "Usage" << std::endl;
+  std::cout << name << " win_infile ki_infile outfile_prefix (N_kj gf kjmin kjmax kimin kimax kwmin kwmax)" << std::endl << std::endl;
 
-  cout << "Parameters" << endl << "----------" << endl;
-  cout << "win_infile: string" << endl << "  File name of the input window function G^2(k) (three columns: k, G^2(k), unused)." << endl;
-  cout << "ki_infile: string" << endl << "  File name containing the value of ki (three columns: ki, unused, unused)." << endl;
-  cout << "outfile_prefix: string" << endl << "  Prefix of the output file names. They will they are:" << endl;
-  cout << "  outfile_prefix.Wij.dat, outfile_prefix.kj.dat, outfile_prefix.W0j.dat and outfile_prefix.G20i.dat." << endl;
-  cout << "N_kj: integer" << endl << "  Number kj values used. If positive linear integration, if negative logarithmic. Default: " << bins << "." <<endl;
-  cout << "gf: integer" << endl << "  if positive enable gaussian fit of the first 'gf' bins of the window function" << endl;
-  cout << "  and the integration from k=0. Default " << gf << "." << endl;
-  cout << "kjmin, kjmax: double" << endl << "  minimum and maximum values of kj. If negative, the extrema of the input window function used. Default kjmin=-1, kjmax=-1" << endl;
-  cout << "kimin, kimax: double" << endl << "  minimum and maximum values of ki. If negative, all the ki used. Default kimin=-1, kimax=-1" << endl;
-  cout << "kwmin, kwmax: double" << endl << "  minimum and maximum values for the integration. If negative, a gaussian fit to the first bins of the window function will be performed and the maximum set to the maximum of the input window function. Default kwmin=-1, kwmax=-1" << endl;
+  std::cout << "Parameters" << std::endl << "----------" << std::endl;
+  std::cout << "win_infile: string" << std::endl << "  File name of the input window function G^2(k) (four columns: k, G^2(k), unused, unused)." << std::endl;
+  std::cout << "ki_infile: string" << std::endl << "  File name containing the value of ki (four columns: ki, unused, unused, unused)." << std::endl;
+  std::cout << "outfile_prefix: string" << std::endl << "  Prefix of the output file names. They will they are:" << std::endl;
+  std::cout << "  outfile_prefix.Wij.dat, outfile_prefix.kj.dat, outfile_prefix.W0j.dat and outfile_prefix.G20i.dat." << std::endl;
+  std::cout << "N_kj: integer" << std::endl << "  Number kj values used. If positive linear integration, if negative logarithmic. Default: " << bins << "." <<std::endl;
+  std::cout << "gf: integer" << std::endl << "  if positive enable gaussian fit of the first 'gf' bins of the window function" << std::endl;
+  std::cout << "  and the integration from k=0. Default " << gf << "." << std::endl;
+  std::cout << "kjmin, kjmax: double" << std::endl << "  minimum and maximum values of kj. If negative, the extrema of the input window function used. Default kjmin=-1, kjmax=-1" << std::endl;
+  std::cout << "kimin, kimax: double" << std::endl << "  minimum and maximum values of ki. If negative, all the ki used. Default kimin=-1, kimax=-1" << std::endl;
+  std::cout << "kwmin, kwmax: double" << std::endl << "  minimum and maximum values for the integration. If negative, a gaussian fit to the first bins of the window function will be performed and the maximum set to the maximum of the input window function. Default kwmin=-1, kwmax=-1" << std::endl;
 
   exit(0);
 }
