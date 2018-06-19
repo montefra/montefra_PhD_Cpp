@@ -13,7 +13,7 @@ Power_spectrum/boxpower_spectrum*
 Power_spectrum/fkppower_spectrum*
 Theories/p22
 Theories/power_lin_EH
-WindowMatrix/windowmat
+Window*/windowmat
 #test directories
 Tests
 Test
